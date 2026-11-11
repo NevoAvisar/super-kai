@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+/* Warm, minimalist deli palette: cream paper, ink, terracotta, olive. */
+@theme {
+  --font-sans: var(--font-heebo), system-ui, sans-serif;
+  --font-display: var(--font-frank), "Times New Roman", serif;
+
+  --color-cream: #faf6ef;
+  --color-paper: #fffdf9;
+  --color-ink: #2b2622;
+  --color-muted: #7a6f66;
+  --color-line: #ebe3d6;
+
+  --color-brand-50: #fbf3ee;
+  --color-brand-100: #f5e1d5;
+  --color-brand-500: #b4532a; /* terracotta */
+  --color-brand-600: #9a4422;
+  --color-brand-700: #7d361b;
+
+  --color-leaf-50: #f2f3ea;
+  --color-leaf-600: #6b7740; /* olive */
+  --color-leaf-700: #545e30;
+}
+
+body {
+  @apply bg-cream text-ink antialiased;
+}
+
+h1, h2, h3 {
+  text-wrap: balance;
+}

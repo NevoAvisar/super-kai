@@ -1,0 +1,451 @@
+// =============================================================================
+//  Super-Kai (סופר-קאי) — database schema
+//  PostgreSQL + Prisma 7
+//
+//  Conventions
+//  • Money is stored as INTEGER AGOROT (1 ₪ = 100 agorot) — never floats.
+//  • Quantities are Decimal(7,2). For KG products they are multiples of 0.25
+//    (enforced in src/lib/quantity.ts and re-validated server-side).
+//  • Orders snapshot everything (prices, names, address, fees) so that later
+//    product edits never rewrite history or invoices.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// -----------------------------------------------------------------------------
+//  Enums
+// -----------------------------------------------------------------------------
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+/// How a product is sold. KG → 0.25 kg steps. UNIT → whole items / fixed
+/// portions (a 400 g soup container, a jar, a quiche) — see unitWeightGrams.
+enum SaleUnit {
+  KG
+  UNIT
+}
+
+/// Dietary badges shown on product cards.
+enum DietaryTag {
+  VEGETARIAN
+  VEGAN
+  GLUTEN_FREE
+  SPICY
+  KIDS_FAVORITE
+}
+
+/// Which line of the "How much to order?" guide a category belongs to.
+enum PortionGroup {
+  FIRSTS // first courses & salads: 150–200 g / guest
+  MAINS // mains: 150 g boneless, 300 g bone-in / guest
+  SIDES // vegetables & sides: 100–150 g / guest
+  SOUPS
+  OTHER // spreads, bakes, complete meals — no weight guideline
+}
+
+enum StockStatus {
+  IN_STOCK
+  LOW_STOCK
+  OUT_OF_STOCK
+}
+
+enum PromotionType {
+  PERCENT_OFF // value = percent (e.g. 15 → 15% off)
+  AMOUNT_OFF // value = agorot off the unit price
+  FIXED_PRICE // value = new unit price in agorot
+}
+
+enum FulfillmentType {
+  PICKUP
+  DELIVERY
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  IN_PREPARATION
+  READY
+  OUT_FOR_DELIVERY
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum NotificationChannel {
+  EMAIL
+  WHATSAPP
+}
+
+enum NotificationType {
+  NEW_ORDER_ADMIN
+  ORDER_CONFIRMATION_CUSTOMER
+  INVOICE
+  DAILY_SUMMARY
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+// -----------------------------------------------------------------------------
+//  Users & authentication (Auth.js / NextAuth compatible models)
+// -----------------------------------------------------------------------------
+
+model User {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  emailVerified  DateTime?
+  name           String?
+  phone          String?
+  image          String?
+  /// null for users who only sign in with Google / Apple
+  passwordHash   String?
+  role           Role      @default(CUSTOMER)
+  marketingOptIn Boolean   @default(false)
+
+  accounts  Account[]
+  sessions  Session[]
+  addresses Address[]
+  cart      Cart?
+  orders    Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([role])
+  @@index([createdAt])
+}
+
+/// OAuth accounts (Google / Apple) linked to a user.
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Address {
+  id          String  @id @default(cuid())
+  userId      String
+  label       String? // "בית", "עבודה"
+  city        String
+  street      String
+  houseNumber String
+  apartment   String?
+  floor       String?
+  entryCode   String?
+  notes       String?
+  isDefault   Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// -----------------------------------------------------------------------------
+//  Catalog
+// -----------------------------------------------------------------------------
+
+model Category {
+  id           String       @id @default(cuid())
+  name         String
+  slug         String       @unique
+  description  String?
+  imageUrl     String?
+  icon         String? // emoji / icon key used as an image placeholder
+  portionGroup PortionGroup @default(OTHER)
+  sortOrder    Int          @default(0)
+  isActive     Boolean      @default(true)
+
+  products   Product[]
+  promotions Promotion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
+model Product {
+  id            String  @id @default(cuid())
+  name          String
+  slug          String  @unique
+  description   String?
+  imageUrl      String?
+  /// Photorealistic DALL·E / Midjourney prompt used to generate imageUrl.
+  aiImagePrompt String? @db.Text
+  categoryId    String
+
+  saleUnit        SaleUnit @default(KG)
+  /// Price per kg (KG) or per item (UNIT), in agorot.
+  priceAgorot     Int
+  /// Net weight of one UNIT (e.g. 400 for a soup container) — enables the
+  /// "price per 100 g" display for fixed-portion products.
+  unitWeightGrams Int?
+  /// Display label for one UNIT: "מיכל 400 גרם", "צנצנת", "קיש שלם (8 מנות)".
+  unitLabel       String?
+  /// For bone-in mains (300 g / guest instead of 150 g).
+  hasBones        Boolean  @default(false)
+
+  /// Quantity rules — default to the 0.25 kg step required by the business.
+  minQuantity  Decimal  @default(0.25) @db.Decimal(7, 2)
+  quantityStep Decimal  @default(0.25) @db.Decimal(7, 2)
+  maxQuantity  Decimal? @db.Decimal(7, 2)
+
+  stockStatus StockStatus  @default(IN_STOCK)
+  isActive    Boolean      @default(true) // hidden from the catalog when false
+  isFeatured  Boolean      @default(false)
+  sortOrder   Int          @default(0)
+  dietary     DietaryTag[] @default([])
+  tags        String[]     @default([]) // free-text labels: "עונתי", "חדש"
+  allergens   String[]     @default([])
+
+  category   Category    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  promotions Promotion[]
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoryId, isActive, sortOrder])
+  @@index([isFeatured])
+}
+
+/// A discount on a single product OR on a whole category, inside a date window.
+model Promotion {
+  id         String        @id @default(cuid())
+  title      String // shown as a badge: "מבצע!", "15% הנחה"
+  type       PromotionType
+  value      Int
+  productId  String?
+  categoryId String?
+  startsAt   DateTime
+  endsAt     DateTime?
+  isActive   Boolean       @default(true)
+
+  product  Product?  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId, isActive])
+  @@index([categoryId, isActive])
+  @@index([startsAt, endsAt])
+}
+
+// -----------------------------------------------------------------------------
+//  Cart — supports guests (guestToken cookie) and logged-in users.
+//  On login the guest cart is merged into the user's cart and deleted.
+// -----------------------------------------------------------------------------
+
+model Cart {
+  id              String          @id @default(cuid())
+  userId          String?         @unique
+  guestToken      String?         @unique
+  fulfillmentType FulfillmentType @default(DELIVERY)
+
+  user  User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartItem[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  expiresAt DateTime? // guest carts are garbage-collected after this
+
+  @@index([expiresAt])
+}
+
+model CartItem {
+  id        String  @id @default(cuid())
+  cartId    String
+  productId String
+  quantity  Decimal @db.Decimal(7, 2)
+
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([cartId, productId])
+}
+
+// -----------------------------------------------------------------------------
+//  Orders
+// -----------------------------------------------------------------------------
+
+model Order {
+  id          String @id @default(cuid())
+  /// Human-friendly running number shown to Kai and on invoices (#1001…)
+  orderNumber Int    @unique @default(autoincrement())
+  userId      String
+
+  status          OrderStatus     @default(PENDING_PAYMENT)
+  fulfillmentType FulfillmentType
+  /// Calendar date only (Asia/Jerusalem). Computed by getDeliveryDate().
+  deliveryDate    DateTime        @db.Date
+
+  // Totals snapshot (agorot)
+  subtotalAgorot    Int
+  discountAgorot    Int @default(0)
+  deliveryFeeAgorot Int @default(0)
+  totalAgorot       Int
+
+  // Customer snapshot
+  customerName  String
+  customerEmail String
+  customerPhone String
+
+  // Delivery address snapshot (null for PICKUP)
+  shippingCity        String?
+  shippingStreet      String?
+  shippingHouseNumber String?
+  shippingApartment   String?
+  shippingFloor       String?
+  shippingNotes       String?
+
+  customerNotes String?
+
+  // Payment
+  paymentStatus    PaymentStatus @default(PENDING)
+  paymentProvider  String? // "cardcom" | "tranzila" | "stripe" ...
+  paymentReference String?       @unique
+  paidAt           DateTime?
+
+  // Digital invoice / receipt
+  invoiceNumber String?   @unique
+  invoiceUrl    String?
+  invoicedAt    DateTime?
+
+  user          User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  items         OrderItem[]
+  notifications NotificationLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([deliveryDate, status]) // calendar + daily summary
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  /// Nullable so deleting a product never deletes order history.
+  productId String?
+
+  // Snapshot of the product at purchase time
+  productName     String
+  categoryName    String
+  saleUnit        SaleUnit
+  unitPriceAgorot Int // after promotion
+  listPriceAgorot Int // before promotion
+  quantity        Decimal  @db.Decimal(7, 2)
+  lineTotalAgorot Int
+
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([productId]) // sales distribution analytics
+}
+
+// -----------------------------------------------------------------------------
+//  Notifications & settings
+// -----------------------------------------------------------------------------
+
+/// Audit trail of every Email / WhatsApp message sent (new order alerts,
+/// invoices, the daily summary). Lets the admin see failures and retry.
+model NotificationLog {
+  id        String              @id @default(cuid())
+  orderId   String?
+  channel   NotificationChannel
+  type      NotificationType
+  recipient String
+  status    NotificationStatus  @default(QUEUED)
+  payload   Json?
+  error     String?
+  sentAt    DateTime?
+
+  order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@index([status])
+}
+
+/// Single-row table (id = 1) so Kai can tune business rules from the admin
+/// dashboard without a deploy. Defaults mirror src/lib/config.ts.
+model StoreSettings {
+  id                          Int    @id @default(1)
+  freeDeliveryThresholdAgorot Int    @default(15000)
+  deliveryFeeAgorot           Int    @default(2500)
+  minimumOrderAgorot          Int    @default(0)
+  cutoffHour                  Int    @default(14)
+  cutoffMinute                Int    @default(30)
+  /// 0 = Sunday … 6 = Saturday. Days with no deliveries / pickups.
+  closedWeekdays              Int[]  @default([6])
+  timeZone                    String @default("Asia/Jerusalem")
+
+  adminEmail       String?
+  adminWhatsApp    String? // E.164, e.g. +9725XXXXXXXX
+  dailySummaryHour Int     @default(7)
+
+  updatedAt DateTime @updatedAt
+}

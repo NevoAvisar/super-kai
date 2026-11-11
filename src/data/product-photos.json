@@ -1,0 +1,297 @@
+{
+  "$comment": "Product photo per dish. source=curated: interim hand-picked Unsplash photos (closest match, some reused) — replaced by `npm run fetch-photos` (official Unsplash API, one precise photo per dish, with photographer credit). Photos are hotlinked from the Unsplash CDN as Unsplash requires; a local file in public/products/<slug>.jpg always wins.",
+  "photos": {
+    "shuba-jar": {
+      "src": "https://images.unsplash.com/photo-1505576399279-565b52d4ac71",
+      "source": "curated"
+    },
+    "chicken-liver-pate": {
+      "src": "https://images.unsplash.com/photo-1607098665874-fd193397547b",
+      "source": "curated"
+    },
+    "charred-eggplant-tahini-pomegranate": {
+      "src": "https://images.unsplash.com/photo-1490645935967-10de6ba17061",
+      "source": "curated"
+    },
+    "slow-braised-brisket": {
+      "src": "https://images.unsplash.com/photo-1558030006-450675393462",
+      "source": "curated"
+    },
+    "preserved-lemon-roast-chicken": {
+      "src": "https://images.unsplash.com/photo-1598103442097-8b74394b95c6",
+      "source": "curated"
+    },
+    "pistachio-crusted-salmon": {
+      "src": "https://images.unsplash.com/photo-1580476262798-bddd9f4b7369",
+      "source": "curated"
+    },
+    "creamy-artichoke-soup": {
+      "src": "https://images.unsplash.com/photo-1626200419199-391ae4be7a41",
+      "source": "curated"
+    },
+    "winter-root-soup": {
+      "src": "https://images.unsplash.com/photo-1603105037880-880cd4edfb0d",
+      "source": "curated"
+    },
+    "chicken-soup-kneidlach": {
+      "src": "https://images.unsplash.com/photo-1588566565463-180a5b2090d2",
+      "source": "curated"
+    },
+    "beef-pine-nut-strudel": {
+      "src": "https://images.unsplash.com/photo-1601050690597-df0568f70950",
+      "source": "curated"
+    },
+    "sweet-potato-goat-cheese-quiche": {
+      "src": "https://images.unsplash.com/photo-1513104890138-7c749659a591",
+      "source": "curated"
+    },
+    "chicken-mushroom-pot-pie": {
+      "src": "https://images.unsplash.com/photo-1534422298391-e4f8c172dddb",
+      "source": "curated"
+    },
+    "honey-cumin-glazed-carrots": {
+      "src": "https://images.unsplash.com/photo-1512621776951-a57141f2eefd",
+      "source": "curated"
+    },
+    "freekeh-wild-mushrooms": {
+      "src": "https://images.unsplash.com/photo-1547592180-85f173990554",
+      "source": "curated"
+    },
+    "crispy-garlic-rosemary-potatoes": {
+      "src": "https://images.unsplash.com/photo-1594041680534-e8c8cdebd659",
+      "source": "curated"
+    },
+    "first-courses-1": {
+      "src": "https://images.unsplash.com/photo-1482049016688-2d3e1b311543",
+      "source": "curated"
+    },
+    "first-courses-2": {
+      "src": "https://images.unsplash.com/photo-1505253716362-afaea1d3d1af",
+      "source": "curated"
+    },
+    "first-courses-3": {
+      "src": "https://images.unsplash.com/photo-1484980972926-edee96e0960d",
+      "source": "curated"
+    },
+    "first-courses-4": {
+      "src": "https://images.unsplash.com/photo-1515543237350-b3eea1ec8082",
+      "source": "curated"
+    },
+    "first-courses-5": {
+      "src": "https://images.unsplash.com/photo-1543339308-43e59d6b73a6",
+      "source": "curated"
+    },
+    "first-courses-6": {
+      "src": "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe",
+      "source": "curated"
+    },
+    "first-courses-7": {
+      "src": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c",
+      "source": "curated"
+    },
+    "first-courses-8": {
+      "src": "https://images.unsplash.com/photo-1592417817098-8fd3d9eb14a5",
+      "source": "curated"
+    },
+    "first-courses-9": {
+      "src": "https://images.unsplash.com/photo-1572449043416-55f4685c9bb7",
+      "source": "curated"
+    },
+    "first-courses-10": {
+      "src": "https://images.unsplash.com/photo-1608039829572-78524f79c4c7",
+      "source": "curated"
+    },
+    "first-courses-11": {
+      "src": "https://images.unsplash.com/photo-1607532941433-304659e8198a",
+      "source": "curated"
+    },
+    "main-courses-1": {
+      "src": "https://images.unsplash.com/photo-1615937657715-bc7b4b7962c1",
+      "source": "curated"
+    },
+    "main-courses-2": {
+      "src": "https://images.unsplash.com/photo-1574484284002-952d92456975",
+      "source": "curated"
+    },
+    "main-courses-3": {
+      "src": "https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba",
+      "source": "curated"
+    },
+    "main-courses-4": {
+      "src": "https://images.unsplash.com/photo-1562967914-608f82629710",
+      "source": "curated"
+    },
+    "main-courses-5": {
+      "src": "https://images.unsplash.com/photo-1551183053-bf91a1d81141",
+      "source": "curated"
+    },
+    "main-courses-6": {
+      "src": "https://images.unsplash.com/photo-1606728035253-49e8a23146de",
+      "source": "curated"
+    },
+    "main-courses-7": {
+      "src": "https://images.unsplash.com/photo-1555939594-58d7cb561ad1",
+      "source": "curated"
+    },
+    "main-courses-8": {
+      "src": "https://images.unsplash.com/photo-1532550907401-a500c9a57435",
+      "source": "curated"
+    },
+    "main-courses-9": {
+      "src": "https://images.unsplash.com/photo-1600891964092-4316c288032e",
+      "source": "curated"
+    },
+    "main-courses-10": {
+      "src": "https://images.unsplash.com/photo-1611171711912-e3f6b536f532",
+      "source": "curated"
+    },
+    "main-courses-11": {
+      "src": "https://images.unsplash.com/photo-1590412200988-a436970781fa",
+      "source": "curated"
+    },
+    "main-courses-12": {
+      "src": "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2",
+      "source": "curated"
+    },
+    "main-courses-13": {
+      "src": "https://images.unsplash.com/photo-1608835291093-394b0c943a75",
+      "source": "curated"
+    },
+    "main-courses-14": {
+      "src": "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d",
+      "source": "curated"
+    },
+    "sides-1": {
+      "src": "https://images.unsplash.com/photo-1536304993881-ff6e9eefa2a6",
+      "source": "curated"
+    },
+    "sides-2": {
+      "src": "https://images.unsplash.com/photo-1516684732162-798a0062be99",
+      "source": "curated"
+    },
+    "sides-3": {
+      "src": "https://images.unsplash.com/photo-1504674900247-0877df9cc836",
+      "source": "curated"
+    },
+    "sides-4": {
+      "src": "https://images.unsplash.com/photo-1598514983318-2f64f8f4796c",
+      "source": "curated"
+    },
+    "sides-5": {
+      "src": "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9",
+      "source": "curated"
+    },
+    "sides-6": {
+      "src": "https://images.unsplash.com/photo-1473093295043-cdd812d0e601",
+      "source": "curated"
+    },
+    "sides-7": {
+      "src": "https://images.unsplash.com/photo-1612929633738-8fe44f7ec841",
+      "source": "curated"
+    },
+    "sides-8": {
+      "src": "https://images.unsplash.com/photo-1490645935967-10de6ba17061",
+      "source": "curated"
+    },
+    "soups-1": {
+      "src": "https://images.unsplash.com/photo-1578020190125-f4f7c18bc9cb",
+      "source": "curated"
+    },
+    "soups-2": {
+      "src": "https://images.unsplash.com/photo-1613844237701-8f3664fc2eff",
+      "source": "curated"
+    },
+    "soups-3": {
+      "src": "https://images.unsplash.com/photo-1626200419199-391ae4be7a41",
+      "source": "curated"
+    },
+    "soups-4": {
+      "src": "https://images.unsplash.com/photo-1534939561126-855b8675edd7",
+      "source": "curated"
+    },
+    "soups-5": {
+      "src": "https://images.unsplash.com/photo-1476718406336-bb5a9690ee2a",
+      "source": "curated"
+    },
+    "bakes-1": {
+      "src": "https://images.unsplash.com/photo-1618040996337-56904b7850b9",
+      "source": "curated"
+    },
+    "bakes-2": {
+      "src": "https://images.unsplash.com/photo-1513104890138-7c749659a591",
+      "source": "curated"
+    },
+    "bakes-3": {
+      "src": "https://images.unsplash.com/photo-1618040996337-56904b7850b9",
+      "source": "curated"
+    },
+    "bakes-4": {
+      "src": "https://images.unsplash.com/photo-1601050690597-df0568f70950",
+      "source": "curated"
+    },
+    "bakes-5": {
+      "src": "https://images.unsplash.com/photo-1574071318508-1cdbab80d002",
+      "source": "curated"
+    },
+    "bakes-6": {
+      "src": "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38",
+      "source": "curated"
+    },
+    "bakes-7": {
+      "src": "https://images.unsplash.com/photo-1534422298391-e4f8c172dddb",
+      "source": "curated"
+    },
+    "spreads-1": {
+      "src": "https://images.unsplash.com/photo-1590412200988-a436970781fa",
+      "source": "curated"
+    },
+    "spreads-2": {
+      "src": "https://images.unsplash.com/photo-1484980972926-edee96e0960d",
+      "source": "curated"
+    },
+    "spreads-3": {
+      "src": "https://images.unsplash.com/photo-1473093295043-cdd812d0e601",
+      "source": "curated"
+    },
+    "spreads-4": {
+      "src": "https://images.unsplash.com/photo-1607098665874-fd193397547b",
+      "source": "curated"
+    },
+    "spreads-5": {
+      "src": "https://images.unsplash.com/photo-1578020190125-f4f7c18bc9cb",
+      "source": "curated"
+    },
+    "spreads-6": {
+      "src": "https://images.unsplash.com/photo-1590412200988-a436970781fa",
+      "source": "curated"
+    },
+    "spreads-7": {
+      "src": "https://images.unsplash.com/photo-1558030006-450675393462",
+      "source": "curated"
+    },
+    "meals-1": {
+      "src": "https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58",
+      "source": "curated"
+    },
+    "meals-2": {
+      "src": "https://images.unsplash.com/photo-1594041680534-e8c8cdebd659",
+      "source": "curated"
+    },
+    "meals-3": {
+      "src": "https://images.unsplash.com/photo-1547592180-85f173990554",
+      "source": "curated"
+    },
+    "meals-4": {
+      "src": "https://images.unsplash.com/photo-1504674900247-0877df9cc836",
+      "source": "curated"
+    },
+    "meals-5": {
+      "src": "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9",
+      "source": "curated"
+    },
+    "meals-6": {
+      "src": "https://images.unsplash.com/photo-1512621776951-a57141f2eefd",
+      "source": "curated"
+    }
+  }
+}
