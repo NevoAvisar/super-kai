@@ -2,9 +2,10 @@
 
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, KeyRound, LoaderCircle, Mail } from "lucide-react";
+import { Eye, EyeOff, KeyRound, LoaderCircle, Mail, UserRound } from "lucide-react";
 import { getSupabase } from "@/lib/supabase";
 
+type Mode = "login" | "signup";
 type Pending = "google" | "apple" | "password" | "reset" | null;
 type Notice = { kind: "error" | "success"; text: string } | null;
 
@@ -18,6 +19,13 @@ function toHebrew(error: { code?: string; status?: number; message?: string }): 
       return "האימייל או הסיסמה שגויים.";
     case "email_not_confirmed":
       return "כתובת האימייל עדיין לא אומתה. חפשו את מייל האימות בתיבת הדואר.";
+    case "user_already_exists":
+    case "email_exists":
+      return "כתובת האימייל הזו כבר רשומה. אפשר להתחבר איתה.";
+    case "weak_password":
+      return "הסיסמה חלשה מדי. בחרו סיסמה של 8 תווים לפחות.";
+    case "signup_disabled":
+      return "ההרשמה סגורה כרגע.";
     case "user_banned":
       return "החשבון הזה חסום. צרו איתנו קשר לבירור.";
     case "provider_disabled":
@@ -59,9 +67,12 @@ function Spinner() {
   return <LoaderCircle className="size-4 animate-spin" aria-hidden />;
 }
 
-/** Login card: Google / Apple, or email + password. All copy is Hebrew, laid out RTL. */
+/** Login / sign-up card: Google / Apple, or email + password. All copy is Hebrew, laid out RTL. */
 export function AuthForm({ logo }: { logo?: ReactNode }) {
   const router = useRouter();
+  const [mode, setMode] = useState<Mode>("login");
+  const signup = mode === "signup";
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -112,10 +123,27 @@ export function AuthForm({ logo }: { logo?: ReactNode }) {
     setNotice(null);
     setPending("password");
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-      // On success onAuthStateChange redirects — keep the spinner until then.
-      if (!error) return;
-      setNotice({ kind: "error", text: toHebrew(error) });
+      if (signup) {
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: { emailRedirectTo: `${window.location.origin}/login`, data: { full_name: name.trim() } },
+        });
+        // With a session, onAuthStateChange redirects — keep the spinner until then.
+        if (!error && data.session) return;
+        if (error) setNotice({ kind: "error", text: toHebrew(error) });
+        // Supabase hides "already registered" behind a user with no identities.
+        else if (data.user?.identities?.length === 0) setNotice({ kind: "error", text: toHebrew({ code: "user_already_exists" }) });
+        else {
+          setNotice({ kind: "success", text: "כמעט סיימנו! שלחנו אליך מייל אימות – לחיצה על הקישור שבו תשלים את ההרשמה." });
+          setPassword("");
+        }
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        // On success onAuthStateChange redirects — keep the spinner until then.
+        if (!error) return;
+        setNotice({ kind: "error", text: toHebrew(error) });
+      }
     } catch {
       setNotice({ kind: "error", text: GENERIC });
     }
@@ -147,11 +175,13 @@ export function AuthForm({ logo }: { logo?: ReactNode }) {
     <div dir="rtl" className="w-full max-w-md rounded-3xl bg-paper p-6 shadow-[0_30px_60px_-40px_rgba(50,30,10,0.35)] ring-1 ring-line sm:p-8">
       <header className="text-center">
         {logo}
-        <h1 className="font-display text-3xl font-bold">התחברות לסופר-קאי</h1>
-        <p className="mt-1 text-sm text-muted">ההזמנות, הכתובות והמנות האהובות – במקום אחד.</p>
+        <h1 className="font-display text-3xl font-bold">{signup ? "הרשמה לסופר-קאי" : "התחברות לסופר-קאי"}</h1>
+        <p className="mt-1 text-sm text-muted">
+          {signup ? "פותחים חשבון בחצי דקה – ומזמינים מהר יותר בפעם הבאה." : "ההזמנות, הכתובות והמנות האהובות – במקום אחד."}
+        </p>
       </header>
 
-      <p className="mb-3 mt-7 text-center text-xs font-medium text-muted">התחברות מהירה באמצעות</p>
+      <p className="mb-3 mt-7 text-center text-xs font-medium text-muted">{signup ? "הרשמה מהירה באמצעות" : "התחברות מהירה באמצעות"}</p>
       <div className="grid grid-cols-2 gap-3">
         <button type="button" className={socialClass} disabled={busy} onClick={() => signInWith("google")}>
           {pending === "google" ? <Spinner /> : <GoogleIcon />}
@@ -170,6 +200,27 @@ export function AuthForm({ logo }: { logo?: ReactNode }) {
       </div>
 
       <form onSubmit={onSubmit} className="space-y-4" aria-busy={busy}>
+        {signup && (
+          <div className="space-y-1.5">
+            <label htmlFor="login-name" className="text-sm font-medium">
+              שם מלא
+            </label>
+            <div className="relative">
+              <UserRound className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
+              <input
+                id="login-name"
+                type="text"
+                autoComplete="name"
+                required
+                disabled={busy}
+                placeholder="ישראל ישראלי"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className={`${inputClass} pl-3 pr-9`}
+              />
+            </div>
+          </div>
+        )}
         <div className="space-y-1.5">
           <label htmlFor="login-email" className="text-sm font-medium">
             אימייל
@@ -197,15 +248,19 @@ export function AuthForm({ logo }: { logo?: ReactNode }) {
             <label htmlFor="login-password" className="text-sm font-medium">
               סיסמה
             </label>
-            <button
-              type="button"
-              onClick={onForgotPassword}
-              disabled={busy}
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-600 hover:text-brand-700 hover:underline disabled:opacity-60"
-            >
-              {pending === "reset" && <Spinner />}
-              שכחתי סיסמה?
-            </button>
+            {signup ? (
+              <span className="text-xs text-muted">8 תווים לפחות</span>
+            ) : (
+              <button
+                type="button"
+                onClick={onForgotPassword}
+                disabled={busy}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-600 hover:text-brand-700 hover:underline disabled:opacity-60"
+              >
+                {pending === "reset" && <Spinner />}
+                שכחתי סיסמה?
+              </button>
+            )}
           </div>
           <div className="relative">
             <KeyRound className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
@@ -213,7 +268,8 @@ export function AuthForm({ logo }: { logo?: ReactNode }) {
               id="login-password"
               type={showPassword ? "text" : "password"}
               dir="ltr"
-              autoComplete="current-password"
+              autoComplete={signup ? "new-password" : "current-password"}
+              minLength={signup ? 8 : undefined}
               required
               disabled={busy}
               placeholder="••••••••"
@@ -252,12 +308,27 @@ export function AuthForm({ logo }: { logo?: ReactNode }) {
           className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-500 text-sm font-bold text-white transition hover:bg-brand-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-70"
         >
           {pending === "password" && <Spinner />}
-          התחבר
+          {signup ? "הרשמה" : "התחבר"}
         </button>
       </form>
 
-      <p className="mt-6 text-center text-xs leading-relaxed text-muted">
-        בהתחברות, הנך מאשר/ת את תנאי השימוש ומדיניות הפרטיות
+      <p className="mt-5 text-center text-sm text-muted">
+        {signup ? "כבר יש לך חשבון?" : "עדיין אין לך חשבון?"}{" "}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            setMode(signup ? "login" : "signup");
+            setNotice(null);
+          }}
+          className="font-bold text-brand-600 hover:text-brand-700 hover:underline disabled:opacity-60"
+        >
+          {signup ? "התחברות" : "הרשמה"}
+        </button>
+      </p>
+
+      <p className="mt-4 text-center text-xs leading-relaxed text-muted">
+        {signup ? "בהרשמה" : "בהתחברות"}, הנך מאשר/ת את תנאי השימוש ומדיניות הפרטיות
       </p>
     </div>
   );
