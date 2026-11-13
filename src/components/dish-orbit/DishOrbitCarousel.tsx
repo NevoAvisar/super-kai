@@ -26,6 +26,8 @@ const ARCS = [
 const STEP_VH = 0.7;
 const PIN_QUERY = "(min-width: 1024px) and (prefers-reduced-motion: no-preference)";
 const pad = (k: number) => String(k).padStart(2, "0");
+/** True while a tween is still scheduled (killed / finished tweens are dropped by GSAP). */
+const isRunning = (t: gsap.core.Tween | null) => !!t && gsap.getTweensOf(window).includes(t);
 
 /**
  * The home page: one orbit carousel. Slide 1 is Kai's welcome & story, the
@@ -46,7 +48,7 @@ export function DishOrbitCarousel({ dishes }: { dishes: OrbitDish[] }) {
   const fillRef = useRef<HTMLSpanElement>(null);
   const current = useRef(0);
   const stRef = useRef<ScrollTrigger | null>(null);
-  const scrollingTo = useRef(false); // ignore pin updates during a programmatic scroll
+  const scrollTween = useRef<gsap.core.Tween | null>(null); // pin updates are ignored while this runs
   const reduced = useRef(false);
   const shown = useRef(0); // slide whose title is currently revealed
 
@@ -110,15 +112,12 @@ export function DishOrbitCarousel({ dishes }: { dishes: OrbitDish[] }) {
       const hops = Math.abs(to - current.current);
       animateTo(to, dir);
       if (!st) return;
-      scrollingTo.current = true;
-      gsap.to(window, {
+      scrollTween.current = gsap.to(window, {
         // autoKill off: ScrollTrigger's own pin/snap adjustments would otherwise cancel the tween mid-way.
         scrollTo: { y: st.start + (st.end - st.start) * (to / (n - 1)), autoKill: false },
         duration: Math.min(1.6, 0.6 + hops * 0.12),
         ease: "power2.inOut",
         overwrite: true,
-        onComplete: () => void (scrollingTo.current = false),
-        onInterrupt: () => void (scrollingTo.current = false),
       });
     },
     [animateTo, n],
@@ -151,7 +150,7 @@ export function DishOrbitCarousel({ dishes }: { dishes: OrbitDish[] }) {
         snap: { snapTo: 1 / (n - 1), duration: { min: 0.25, max: 0.6 }, delay: 0.05, ease: "power1.inOut" },
         onRefreshInit: syncHeader,
         onUpdate: (self) => {
-          if (!scrollingTo.current) animateTo(Math.round(self.progress * (n - 1)));
+          if (!isRunning(scrollTween.current)) animateTo(Math.round(self.progress * (n - 1)));
         },
       });
       stRef.current = st;
