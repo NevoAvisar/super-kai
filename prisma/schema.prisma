@@ -257,12 +257,27 @@ model Product {
   promotions Promotion[]
   cartItems  CartItem[]
   orderItems OrderItem[]
+  likes      ProductLike[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([categoryId, isActive, sortOrder])
   @@index([isFeatured])
+}
+
+/// A visitor's "loved it" on a dish (home-page carousel). Visitors are
+/// anonymous, identified by the httpOnly `sk_vid` cookie — one like per
+/// browser per product.
+model ProductLike {
+  productId String
+  visitorId String
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([productId, visitorId])
+  @@index([visitorId])
 }
 
 /// A discount on a single product OR on a whole category, inside a date window.

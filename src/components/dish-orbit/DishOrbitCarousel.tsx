@@ -9,6 +9,7 @@ import type { OrbitDish } from "@/data/dish-orbit";
 import { formatILS } from "@/lib/money";
 import { OrbitPlate } from "./OrbitPlate";
 import { DishDetailsCard } from "./DishDetailsCard";
+import { useDishLikes } from "./use-dish-likes";
 
 if (typeof window !== "undefined") gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
 const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
@@ -34,6 +35,7 @@ const PIN_QUERY = "(min-width: 1024px) and (prefers-reduced-motion: no-preferenc
 export function DishOrbitCarousel({ dishes }: { dishes: OrbitDish[] }) {
   const n = dishes.length;
   const [active, setActive] = useState(0);
+  const likeFor = useDishLikes(dishes.map((d) => d.product.id));
   const rootRef = useRef<HTMLElement>(null);
   const armsRef = useRef<(HTMLDivElement | null)[]>([]);
   const platesRef = useRef<(HTMLDivElement | null)[]>([]);
@@ -265,7 +267,7 @@ export function DishOrbitCarousel({ dishes }: { dishes: OrbitDish[] }) {
             </p>
           </div>
 
-          <DishDetailsCard dish={dish} />
+          <DishDetailsCard dish={dish} like={likeFor(product.id)} />
 
           <Link href="/catalog" className="inline-block text-sm font-bold text-brand-600 hover:underline">
             לכל התפריט ←

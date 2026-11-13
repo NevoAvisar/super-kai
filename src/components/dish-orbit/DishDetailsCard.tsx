@@ -1,47 +1,23 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { CHEF, type OrbitDish } from "@/data/dish-orbit";
 import { formatILS } from "@/lib/money";
 import { useCart } from "@/store/cart";
 import { useHydrated } from "@/lib/use-hydrated";
 import { DietaryBadge } from "../DietaryBadge";
 import { QuantityStepper } from "../QuantityStepper";
+import type { DishLike } from "./use-dish-likes";
+
+const likeCount = new Intl.NumberFormat("he-IL", { notation: "compact" });
 
 type Tab = "overview" | "ingredients";
-const FAV_KEY = "super-kai-favorites";
-
-function readFavorites(): string[] {
-  try {
-    return JSON.parse(localStorage.getItem(FAV_KEY) ?? "[]");
-  } catch {
-    return [];
-  }
-}
-
-/** Per-visitor "loved it" toggle, kept in this browser only. */
-function useFavorite(slug: string) {
-  const [favs, setFavs] = useState<string[]>([]);
-  useEffect(() => setFavs(readFavorites()), []);
-  const toggle = () => {
-    const next = favs.includes(slug) ? favs.filter((s) => s !== slug) : [...favs, slug];
-    setFavs(next);
-    try {
-      localStorage.setItem(FAV_KEY, JSON.stringify(next));
-    } catch {
-      // storage blocked (private mode) — the toggle still works for this visit
-    }
-  };
-  return { loved: favs.includes(slug), toggle };
-}
-
-export function DishDetailsCard({ dish }: { dish: OrbitDish }) {
+export function DishDetailsCard({ dish, like }: { dish: OrbitDish; like: DishLike }) {
   const { product } = dish;
   const [tab, setTab] = useState<Tab>("overview");
   const hydrated = useHydrated();
   const item = useCart((s) => s.items[product.id]);
   const { add, increment, decrement } = useCart.getState();
-  const { loved, toggle } = useFavorite(product.slug);
   const videoRef = useRef<HTMLDialogElement>(null);
   const isKg = product.saleUnit === "KG";
 
@@ -122,17 +98,23 @@ export function DishDetailsCard({ dish }: { dish: OrbitDish }) {
         </div>
         <button
           type="button"
-          onClick={toggle}
-          aria-pressed={loved}
-          aria-label={loved ? "הסרה מהמועדפים" : "הוספה למועדפים"}
+          onClick={like.toggle}
+          aria-pressed={like.liked}
+          aria-label={`${like.liked ? "ביטול אהבתי" : "אהבתי"}${like.count ? ` · ${like.count} אהבו` : ""}`}
           className={`ms-auto flex h-10 items-center gap-1.5 rounded-full px-3.5 text-sm font-bold ring-1 transition active:scale-95 ${
-            loved ? "bg-brand-50 text-brand-600 ring-brand-500/40" : "text-muted ring-line hover:text-ink"
+            like.liked ? "bg-brand-50 text-brand-600 ring-brand-500/40" : "text-muted ring-line hover:text-ink"
           }`}
         >
-          <span aria-hidden className={`text-base transition ${loved ? "scale-110" : ""}`}>
-            {loved ? "♥" : "♡"}
+          <span aria-hidden className={`text-base transition-transform ${like.liked ? "scale-110" : ""}`}>
+            {like.liked ? "♥" : "♡"}
           </span>
-          {loved ? "אהבתי" : "אהבתי?"}
+          {like.count === null ? (
+            <span className="inline-block h-3 w-5 animate-pulse rounded bg-line" />
+          ) : like.count > 0 ? (
+            <span className="tabular-nums">{likeCount.format(like.count)}</span>
+          ) : (
+            "אהבתי?"
+          )}
         </button>
       </div>
 
