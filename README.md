@@ -123,6 +123,7 @@ src/
 | `/admin/products` | Edit name, price, stock status (in stock / low / out) and the "shown on site" flag; add a product. |
 | `/admin/promotions` | Create, edit and disable a discount on one product or a whole category, with a start and optional end date (`Promotion` model: `PERCENT_OFF` / `AMOUNT_OFF` / `FIXED_PRICE`). |
 | `/admin/orders` | Orders grouped by delivery date, a per-day kitchen summary, and a status control per order. |
+| `/admin/customers` | Everyone with an account or an order: contact details, order count, total and order history; add a customer with a temporary password. |
 | `/orders` | The signed-in customer's own orders (matched by account email or the checkout email). |
 
 **How the layering works** (`src/lib/local-admin.ts`, `src/store/admin.ts`, `src/lib/use-live-catalog.ts`):

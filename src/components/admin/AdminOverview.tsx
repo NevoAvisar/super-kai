@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { listCustomerAccounts } from "@/context/AuthContext";
 import type { CatalogProduct } from "@/lib/catalog";
-import { adminProducts, allPromotions, promotionPhase } from "@/lib/local-admin";
+import { adminProducts, allPromotions, buildCustomers, promotionPhase, type AdminCustomer } from "@/lib/local-admin";
 import { useLocalAdminData, useMinuteClock } from "@/lib/use-live-catalog";
 import { useHydrated } from "@/lib/use-hydrated";
 import { useOrdersStore } from "@/store/admin";
@@ -12,6 +14,9 @@ export function AdminOverview({ products }: { products: CatalogProduct[] }) {
   const data = useLocalAdminData();
   const now = useMinuteClock();
   const orders = useOrdersStore((s) => s.orders);
+
+  const [customers, setCustomers] = useState<AdminCustomer[]>([]);
+  useEffect(() => setCustomers(buildCustomers(listCustomerAccounts(), orders)), [orders]);
 
   const rows = adminProducts(products, hydrated ? data : { overrides: {}, added: [], promotions: [] }, now);
   const promos = allPromotions(products, hydrated ? data : { overrides: {}, added: [], promotions: [] });
@@ -39,10 +44,17 @@ export function AdminOverview({ products }: { products: CatalogProduct[] }) {
       stat: `${open} הזמנות פתוחות`,
       note: `${hydrated ? orders.length : 0} הזמנות בסך הכול`,
     },
+    {
+      href: "/admin/customers",
+      title: "לקוחות",
+      text: "רשימת הלקוחות, ההזמנות של כל אחד, והוספת לקוח חדש.",
+      stat: `${customers.length} לקוחות`,
+      note: `${customers.filter((c) => c.registered).length} רשומים · ${customers.filter((c) => !c.registered).length} אורחים`,
+    },
   ];
 
   return (
-    <ul className="grid gap-4 sm:grid-cols-3">
+    <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {sections.map((s) => (
         <li key={s.href}>
           <Link href={s.href} className="flex h-full flex-col rounded-3xl bg-paper p-6 ring-1 ring-line transition hover:ring-brand-500">

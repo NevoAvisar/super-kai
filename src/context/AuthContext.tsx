@@ -19,6 +19,7 @@ export interface AuthUser {
   name: string;
   role: Role;
   provider: "password" | SocialProvider;
+  phone?: string;
 }
 
 interface StoredUser extends AuthUser {
@@ -75,6 +76,37 @@ const strip = ({ password: _password, ...user }: StoredUser): AuthUser => user;
 const normalize = (email: string) => email.trim().toLowerCase();
 /** A short pause so the buttons' loading state is visible, like a real request. */
 const pause = () => new Promise((r) => setTimeout(r, 450));
+
+/**
+ * Admin screen helpers (mock): the registered customer accounts in this
+ * browser, without passwords, and a way for the admin to add one. With a real
+ * backend these become admin-only server actions over the User table.
+ */
+export type CustomerAccount = Omit<AuthUser, "role">;
+
+export function listCustomerAccounts(): CustomerAccount[] {
+  return read<StoredUser[]>(USERS_KEY, [])
+    .filter((u) => u.role === "customer")
+    .map(({ password: _password, role: _role, ...account }) => account);
+}
+
+export function addCustomerAccount(input: { name: string; email: string; phone?: string; password: string }): { ok: true } | { ok: false; error: string } {
+  const email = normalize(input.email);
+  const users = read<StoredUser[]>(USERS_KEY, []);
+  if (email === ADMIN.email || users.some((u) => u.email === email)) {
+    return { ok: false, error: "כתובת האימייל הזו כבר רשומה." };
+  }
+  const created: StoredUser = {
+    email,
+    password: input.password,
+    name: input.name.trim() || email.split("@")[0],
+    role: "customer",
+    provider: "password",
+    ...(input.phone?.trim() && { phone: input.phone.trim() }),
+  };
+  write(USERS_KEY, [...users, created]);
+  return { ok: true };
+}
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 

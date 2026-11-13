@@ -60,7 +60,7 @@ export default function CheckoutPage() {
 
   // A signed-in customer doesn't retype what the account already knows.
   useEffect(() => {
-    if (user) setF((s) => ({ ...s, name: s.name || user.name, email: s.email || user.email }));
+    if (user) setF((s) => ({ ...s, name: s.name || user.name, email: s.email || user.email, phone: s.phone || (user.phone ?? "") }));
   }, [user]);
 
   if (!hydrated) return <div className="mx-auto max-w-5xl px-4 py-16 text-center text-muted">טוען…</div>;

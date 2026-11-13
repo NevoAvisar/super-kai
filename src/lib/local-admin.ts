@@ -305,3 +305,43 @@ export function groupOrdersByDeliveryDate(orders: LocalOrder[], today: DateOnly)
   const past = days.filter((d) => d.date < today).sort((a, b) => b.date.localeCompare(a.date));
   return [...upcoming, ...past];
 }
+
+/** A customer as the admin sees them: a registered account, a guest who ordered, or both. */
+export interface AdminCustomer {
+  email: string;
+  name: string;
+  phone: string | null;
+  /** Has an account (can sign in); false for a guest known only from an order. */
+  registered: boolean;
+  orders: LocalOrder[];
+  /** Sum of the non-cancelled orders. */
+  totalAgorot: number;
+  lastOrderAt: string | null;
+}
+
+/** Registered accounts merged with everyone who placed an order, most recent buyers first. */
+export function buildCustomers(
+  accounts: { email: string; name: string; phone?: string }[],
+  orders: LocalOrder[],
+): AdminCustomer[] {
+  const byEmail = new Map<string, AdminCustomer>();
+  const key = (email: string) => email.trim().toLowerCase();
+
+  for (const a of accounts) {
+    byEmail.set(key(a.email), { email: key(a.email), name: a.name, phone: a.phone ?? null, registered: true, orders: [], totalAgorot: 0, lastOrderAt: null });
+  }
+  for (const o of [...orders].sort((a, b) => a.createdAt.localeCompare(b.createdAt))) {
+    const email = key(o.userEmail ?? o.contact.email);
+    const c = byEmail.get(email) ?? { email, name: o.contact.name, phone: null, registered: false, orders: [], totalAgorot: 0, lastOrderAt: null };
+    c.orders = [o, ...c.orders]; // newest first
+    if (o.userEmail) c.registered = true; // ordered while signed in (e.g. a social login)
+    c.phone ??= o.contact.phone || null;
+    if (o.status !== "CANCELLED") c.totalAgorot += o.totals.totalAgorot;
+    c.lastOrderAt = o.createdAt;
+    byEmail.set(email, c);
+  }
+
+  return [...byEmail.values()].sort(
+    (a, b) => (b.lastOrderAt ?? "").localeCompare(a.lastOrderAt ?? "") || a.name.localeCompare(b.name, "he"),
+  );
+}

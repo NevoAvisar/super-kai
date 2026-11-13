@@ -4,6 +4,7 @@ import {
   adminProducts,
   allPromotions,
   applyLocalAdmin,
+  buildCustomers,
   builtInPromotions,
   EMPTY_ADMIN_DATA,
   groupOrdersByDeliveryDate,
@@ -152,5 +153,23 @@ describe("orders", () => {
     expect(days[0].orders).toHaveLength(3);
     expect(days[0].summary).toEqual([{ productId: "schnitzel", name: "שניצל", saleUnit: "KG", quantity: 1.5 }]);
     expect(days[0].totalAgorot).toBe(150_00);
+  });
+});
+
+describe("buildCustomers", () => {
+  it("merges accounts with the people who ordered, most recent buyers first", () => {
+    const customers = buildCustomers(
+      [{ email: "dana@example.com", name: "דנה כהן", phone: "0500000000" }, { email: "noa@example.com", name: "נועה" }],
+      [
+        order(1, { userEmail: "dana@example.com" }),
+        order(2, { userEmail: "dana@example.com", status: "CANCELLED" }),
+        order(3, { contact: { name: "אורח", phone: "0521111111", email: "Guest@example.com" } }),
+      ],
+    );
+    expect(customers.map((c) => c.email)).toEqual(["guest@example.com", "dana@example.com", "noa@example.com"]);
+    expect(customers[0]).toMatchObject({ name: "אורח", registered: false, phone: "0521111111", totalAgorot: 75_00 });
+    expect(customers[1]).toMatchObject({ name: "דנה כהן", registered: true, phone: "0500000000", totalAgorot: 75_00 });
+    expect(customers[1].orders.map((o) => o.orderNumber)).toEqual([2, 1]);
+    expect(customers[2]).toMatchObject({ registered: true, orders: [], lastOrderAt: null });
   });
 });

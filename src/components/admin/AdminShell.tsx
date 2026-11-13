@@ -10,6 +10,7 @@ const tabs = [
   { href: "/admin/products", label: "מוצרים" },
   { href: "/admin/promotions", label: "מבצעים" },
   { href: "/admin/orders", label: "הזמנות" },
+  { href: "/admin/customers", label: "לקוחות" },
 ];
 
 /** Frame of every /admin screen: admin-only gate, title, section tabs and the local-data notice. */
