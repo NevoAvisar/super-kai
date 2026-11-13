@@ -10,6 +10,7 @@ import { formatILS } from "@/lib/money";
 import { MonogramPlate, OrbitPlate } from "./OrbitPlate";
 import { DishDetailsCard } from "./DishDetailsCard";
 import { useDishLikes } from "./use-dish-likes";
+import { useAutoplay } from "./use-autoplay";
 
 if (typeof window !== "undefined") gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
 const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
@@ -24,6 +25,8 @@ const ARCS = [
 ];
 /** Scroll distance per slide while pinned, as a fraction of the viewport height. */
 const STEP_VH = 0.7;
+/** Autoplay interval, seconds. */
+const AUTOPLAY_S = 5;
 const PIN_QUERY = "(min-width: 1024px) and (prefers-reduced-motion: no-preference)";
 const pad = (k: number) => String(k).padStart(2, "0");
 /** True while a tween is still scheduled (killed / finished tweens are dropped by GSAP). */
@@ -34,6 +37,7 @@ const isRunning = (t: gsap.core.Tween | null) => !!t && gsap.getTweensOf(window)
  * rest are the most popular dishes of each category (see hero-dishes.ts).
  *  • desktop: the section pins; scrolling steps through the slides, then releases
  *  • arrows, swipes and focused arrow keys loop endlessly (last → first keeps orbiting forward)
+ *  • autoplay every 5 s; pauses on hover, keyboard focus, hidden tab, off-screen, or the pause button
  *  • only transforms, opacity and one CSS variable are animated (GPU friendly)
  */
 export function DishOrbitCarousel({ dishes }: { dishes: OrbitDish[] }) {
@@ -51,6 +55,7 @@ export function DishOrbitCarousel({ dishes }: { dishes: OrbitDish[] }) {
   const scrollTween = useRef<gsap.core.Tween | null>(null); // pin updates are ignored while this runs
   const reduced = useRef(false);
   const shown = useRef(0); // slide whose title is currently revealed
+  const barRef = useRef<HTMLSpanElement>(null);
 
   /** Category chips: welcome + the first slide of each category. */
   const chapters = useMemo(() => {
@@ -124,6 +129,21 @@ export function DishOrbitCarousel({ dishes }: { dishes: OrbitDish[] }) {
   );
   const next = useCallback(() => goTo(current.current + 1, 1), [goTo]);
   const prev = useCallback(() => goTo(current.current - 1, -1), [goTo]);
+
+  // Desktop: only advance while the pinned section fills the screen, so autoplay
+  // never scrolls a visitor who has moved on to the rest of the page.
+  const autoplay = useAutoplay({
+    rootRef,
+    barRef,
+    seconds: AUTOPLAY_S,
+    step: next,
+    canStep: () => {
+      const st = stRef.current;
+      // Inclusive: on the last slide the scroll sits exactly at `end`, where isActive is false.
+      return !st || (st.scroll() >= st.start - 2 && st.scroll() <= st.end + 2);
+    },
+    restartKey: active,
+  });
 
   // Pinning (desktop only, motion allowed) + reduced-motion detection.
   useIsoLayoutEffect(() => {
@@ -235,6 +255,7 @@ export function DishOrbitCarousel({ dishes }: { dishes: OrbitDish[] }) {
 
   return (
     <section
+      {...autoplay.rootHandlers}
       id="about"
       ref={rootRef}
       aria-roledescription="carousel"
@@ -285,7 +306,7 @@ export function DishOrbitCarousel({ dishes }: { dishes: OrbitDish[] }) {
               {title}
             </span>
           </h2>
-          <p className="sr-only" aria-live="polite">
+          <p className="sr-only" data-slide-status aria-live={autoplay.paused ? "polite" : "off"}>
             {`שקופית ${active + 1} מתוך ${n}: ${title}`}
           </p>
 
@@ -428,11 +449,29 @@ export function DishOrbitCarousel({ dishes }: { dishes: OrbitDish[] }) {
             <button type="button" onClick={prev} aria-label="הקודם" className={arrowBtn}>
               →
             </button>
-            <span className="min-w-[4.5rem] text-center font-display tabular-nums text-muted">
-              <span className="font-bold text-ink">{pad(active + 1)}</span> / {pad(n)}
+            <span className="flex min-w-[4.5rem] flex-col items-center gap-1.5 font-display tabular-nums text-muted">
+              <span>
+                <span className="font-bold text-ink">{pad(active + 1)}</span> / {pad(n)}
+              </span>
+              {/* autoplay countdown (its tween is the timer) */}
+              <span aria-hidden className="block h-0.5 w-full overflow-hidden rounded-full bg-ink/10">
+                <span
+                  ref={barRef}
+                  className="block h-full w-full origin-right"
+                  style={{ transform: "scaleX(0)", background: "color-mix(in oklab, var(--accent) 80%, black)" }}
+                />
+              </span>
             </span>
             <button type="button" onClick={next} aria-label="הבא" className={arrowBtn}>
               ←
+            </button>
+            <button
+              type="button"
+              onClick={autoplay.toggle}
+              aria-label={autoplay.stopped ? "הפעלת מעבר אוטומטי" : "עצירת מעבר אוטומטי"}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-xs text-muted ring-1 ring-line transition hover:text-ink hover:ring-ink/30"
+            >
+              <span aria-hidden>{autoplay.stopped ? "▶" : "❚❚"}</span>
             </button>
           </div>
 
