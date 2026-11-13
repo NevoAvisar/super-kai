@@ -26,7 +26,7 @@ export function Header() {
         </nav>
         <div className="ms-auto flex items-center gap-3">
           {/* Login is optional while browsing — enforced only at checkout (step 2). */}
-          <Link href="/login" className="hidden text-sm font-medium hover:text-brand-600 sm:block">
+          <Link href="/login" className="text-sm font-medium hover:text-brand-600">
             התחברות
           </Link>
           <CartButton />
