@@ -42,12 +42,17 @@ export function DishDetailsCard({ dish, like }: { dish: OrbitDish; like: DishLik
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div role="tablist" aria-label="פרטי המנה" className="flex gap-1 rounded-full bg-cream p-1">
           {tabBtn("overview", "סקירה")}
-          {tabBtn("ingredients", "רכיבים")}
+          {dish.ingredients.length > 0 && tabBtn("ingredients", "רכיבים")}
         </div>
         <div className="flex flex-wrap gap-1.5">
-          <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold text-ink ring-1 ring-inset ring-[color-mix(in_oklab,var(--accent)_45%,transparent)] bg-[color-mix(in_oklab,var(--accent)_16%,white)]">
-            ★ מנת הדגל
-          </span>
+          {dish.trending && (
+            <span className="rounded-full bg-ink px-2.5 py-0.5 text-[11px] font-bold text-paper">🔥 הכי מבוקש כרגע</span>
+          )}
+          {dish.signature && (
+            <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold text-ink ring-1 ring-inset ring-[color-mix(in_oklab,var(--accent)_45%,transparent)] bg-[color-mix(in_oklab,var(--accent)_16%,white)]">
+              ★ מנת הדגל
+            </span>
+          )}
           {product.promoLabel && (
             <span className="rounded-full bg-brand-500 px-2.5 py-0.5 text-[11px] font-bold text-white">{product.promoLabel}</span>
           )}
@@ -58,7 +63,7 @@ export function DishDetailsCard({ dish, like }: { dish: OrbitDish; like: DishLik
       </div>
 
       <div data-reveal className="mt-4 min-h-[7.5rem]">
-        {tab === "overview" ? (
+        {tab === "overview" || dish.ingredients.length === 0 ? (
           <div id="dish-panel-overview" role="tabpanel" aria-labelledby="dish-tab-overview" className="space-y-2">
             {product.description && <p className="line-clamp-3 leading-relaxed">{product.description}</p>}
             {dish.servingGuide && <p className="line-clamp-2 text-sm text-muted">{dish.servingGuide}</p>}

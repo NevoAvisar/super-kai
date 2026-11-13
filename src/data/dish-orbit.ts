@@ -1,10 +1,11 @@
 import type { CatalogProduct } from "@/lib/catalog";
+import { DEFAULT_RULES } from "@/lib/config";
 
 /**
  * Presentation data for the home-page Dish Orbit carousel.
- * The dishes themselves come from the catalog (featured signature products);
- * this file only adds what the catalog doesn't store: an accent colour that
- * drives the pastel arcs, and an optional cooking video.
+ * The dishes come from the catalog, ranked by popularity (lib/hero-dishes.ts);
+ * this file adds what the catalog doesn't store: accent colours for the
+ * pastel arcs, optional cooking videos, and the welcome slide's copy.
  */
 export interface DishOrbitExtras {
   /** Hex colour the arcs and background morph to while this dish is on stage. */
@@ -46,4 +47,22 @@ export interface OrbitDish {
   servingGuide: string | null;
   accent: string;
   videoUrl: string | null;
+  /** Part of Kai's signature menu (has an ingredient list). */
+  signature: boolean;
+  /** Most ordered / liked in its category right now (only when there is real data). */
+  trending: boolean;
 }
+
+/** Slide 1 of the hero: who Kai is and how the kitchen works. Placeholder copy — replace with Kai's own words. */
+export const WELCOME = {
+  accent: "#b4532a",
+  eyebrow: "מעדנייה ביתית · אוכל מוכן",
+  title: "אוכל של בית, ברמה של מעדנייה.",
+  story:
+    "קאי מבשל אוכל ביתי כבר שנים – קודם למשפחה ולחברים, ואז לכל השכונה. סופר-קאי נולד מתוך רצון פשוט: שכל אחד יוכל להגיש לשולחן אוכל של בית, טרי ואמיתי, בלי לעמוד שעות במטבח.",
+  pillars: [
+    { icon: "🌅", title: "מבושל כל בוקר", text: "חומרי גלם טריים, בלי חומרים משמרים" },
+    { icon: "⚖️", title: "לפי משקל", text: "כל לחיצה רבע קילו – בדיוק כמה שצריך" },
+    { icon: "🚚", title: "מגיע מחר", text: `הזמנה עד ${DEFAULT_RULES.cutoffHour}:${String(DEFAULT_RULES.cutoffMinute).padStart(2, "0")} מגיעה כבר מחר` },
+  ],
+};
