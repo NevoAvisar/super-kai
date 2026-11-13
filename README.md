@@ -115,6 +115,28 @@ src/
 - **Delivery date is computed, not chosen.** The server re-validates it at checkout (`isValidDeliveryDate`) so a tab left open past 14:30 can't place an order for a date that's no longer valid.
 - **Guest cart**: browsing and adding to cart need no account. On login, the guest cart (`Cart.guestToken`) merges into the user's cart.
 
+## Admin screens without a database (local mock)
+`/admin` works today with **no backend**, so the whole site can be tried end to end. Sign in with the mock admin account defined in `src/context/AuthContext.tsx`.
+
+| Screen | What it does |
+| --- | --- |
+| `/admin/products` | Edit name, price, stock status (in stock / low / out) and the "shown on site" flag; add a product. |
+| `/admin/promotions` | Create, edit and disable a discount on one product or a whole category, with a start and optional end date (`Promotion` model: `PERCENT_OFF` / `AMOUNT_OFF` / `FIXED_PRICE`). |
+| `/admin/orders` | Orders grouped by delivery date, a per-day kitchen summary, and a status control per order. |
+| `/orders` | The signed-in customer's own orders (matched by account email or the checkout email). |
+
+**How the layering works** (`src/lib/local-admin.ts`, `src/store/admin.ts`, `src/lib/use-live-catalog.ts`):
+- The server still renders the seed catalog. Admin edits are stored in `localStorage` as *overrides* per product id (only the changed fields), *added* products, and *promotions*.
+- Promotions that ship with the seed (`promoPercent`) show up as built-in promotions (`seed-<productId>`); saving one stores a replacement with the same id, which is how it is edited or disabled.
+- `applyLocalAdmin()` merges all of that over the base catalog and re-prices with `lib/pricing.ts` (best live promotion wins). Client components get the merged list from `useLiveCatalog()` after hydration; hidden products drop out of the public pages.
+- Checkout sends the same local data to the `prepareOrder` server action, so the order is priced from the catalog the customer saw, and the confirmed order is saved to `localStorage`.
+
+**This is demo data, not a backend.** It lives in one browser, is not secure (anyone can edit `localStorage` or call the checkout action with made-up prices, and the admin gate is client-side only), and other devices never see it. When the database is connected:
+1. Replace the mock auth with real sessions and check the admin role **on the server** for every admin action.
+2. Turn the store actions into server actions that write `Product`, `Promotion` and `Order` rows; delete `lib/local-admin.ts`' overlay, `useLiveCatalog()` and the `local` argument of `prepareOrder`.
+3. Have checkout create the `Order` on the server (order number, payment, invoice) and read `/orders` and `/admin/orders` from the DB.
+4. Known gaps of the mock: a cart line keeps the price it was added at until checkout re-prices it; the home-page hero line-up is picked on the server, so it shows edited names and prices but does not drop a hidden or out-of-stock dish.
+
 ## Menu & portions
 - **Categories:** ראשונות וסלטים · מנות עיקריות · ירקות ותוספות · מרקים (400 g containers) · טארטים, פיצות ומאפים · ממרחים ורטבים · ארוחות שלמות.
 - **Selling units:** `KG` products use 0.25 kg steps. `UNIT` products (soups, jars, quiches, meals) carry `unitWeightGrams` + `unitLabel`, so every card can show a **price per 100 g**.
@@ -129,5 +151,5 @@ src/
 
 ## Roadmap
 - **Step 2**: Auth.js (email/password + Google/Apple), `/checkout` gate with cart persistence, pickup/delivery form, payment (Cardcom/Tranzila/Stripe), invoice generation.
-- **Step 3**: Admin dashboard: product/category/promotion CRUD, order calendar (week/month/year), stats.
+- **Step 3**: Admin dashboard on the database: product/category/promotion CRUD, order calendar (week/month/year), stats. (A local, no-database version of products, promotions and orders already exists; see above.)
 - **Step 4**: Notifications: new-order Email + WhatsApp, daily summary cron (`NotificationLog`).

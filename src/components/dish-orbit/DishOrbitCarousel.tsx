@@ -11,6 +11,7 @@ import { MonogramPlate, OrbitPlate } from "./OrbitPlate";
 import { DishDetailsCard } from "./DishDetailsCard";
 import { useDishLikes } from "./use-dish-likes";
 import { useAutoplay } from "./use-autoplay";
+import { useLiveCatalog } from "@/lib/use-live-catalog";
 
 if (typeof window !== "undefined") gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
 const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
@@ -40,7 +41,15 @@ const isRunning = (t: gsap.core.Tween | null) => !!t && gsap.getTweensOf(window)
  *  • autoplay every 5 s; pauses on hover, keyboard focus, hidden tab, off-screen, or the pause button
  *  • only transforms, opacity and one CSS variable are animated (GPU friendly)
  */
-export function DishOrbitCarousel({ dishes }: { dishes: OrbitDish[] }) {
+export function DishOrbitCarousel({ dishes: baseDishes }: { dishes: OrbitDish[] }) {
+  // Local admin edits (name, price, promotion) show on the slides; the line-up itself stays as the server picked it.
+  const baseProducts = useMemo(() => baseDishes.map((d) => d.product), [baseDishes]);
+  const liveProducts = useLiveCatalog(baseProducts);
+  const dishes = useMemo(() => {
+    if (liveProducts === baseProducts) return baseDishes;
+    const byId = new Map(liveProducts.map((p) => [p.id, p]));
+    return baseDishes.map((d) => ({ ...d, product: byId.get(d.product.id) ?? d.product }));
+  }, [baseDishes, baseProducts, liveProducts]);
   const n = dishes.length + 1; // welcome + dishes
   const accents = useMemo(() => [WELCOME.accent, ...dishes.map((d) => d.accent)], [dishes]);
   const [active, setActive] = useState(0);

@@ -40,6 +40,8 @@ export interface CatalogProduct {
   pricePer100gAgorot: number | null;
   promoLabel: string | null;
   inStock: boolean;
+  /** Still orderable, but nearly gone (admin stock status LOW_STOCK). */
+  lowStock?: boolean;
   isFeatured: boolean;
   dietary: DietaryTag[];
 }
@@ -136,6 +138,7 @@ async function dbProducts(): Promise<CatalogProduct[]> {
       pricePer100gAgorot: pricePer100g(price, p.saleUnit, p.unitWeightGrams),
       promoLabel: price < p.priceAgorot ? (promos[0]?.title ?? "מבצע") : null,
       inStock: p.stockStatus !== "OUT_OF_STOCK",
+      lowStock: p.stockStatus === "LOW_STOCK",
       isFeatured: p.isFeatured,
       dietary: p.dietary,
     };

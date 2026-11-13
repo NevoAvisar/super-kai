@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useCart } from "@/store/cart";
 import { useHydrated } from "@/lib/use-hydrated";
 import { useDeliveryDate } from "@/lib/use-delivery-date";
@@ -9,7 +9,12 @@ import { calculateCartTotals, lineTotal } from "@/lib/pricing";
 import { formatILS } from "@/lib/money";
 import { formatQuantity } from "@/lib/quantity";
 import { formatDeliveryDateHe } from "@/lib/delivery-date";
-import type { CheckoutResult, OrderDraft } from "@/lib/checkout";
+import type { CheckoutResult } from "@/lib/checkout";
+import type { CartTotals } from "@/lib/pricing";
+import type { LocalOrder } from "@/lib/local-admin";
+import { useLocalAdminData } from "@/lib/use-live-catalog";
+import { useAuth } from "@/context/AuthContext";
+import { useOrdersStore } from "@/store/admin";
 import { CartThumb } from "@/components/CartThumb";
 import { DeliveryDateNote, FulfillmentToggle, OrderSummary } from "@/components/OrderSummary";
 import { prepareOrder } from "./actions";
@@ -40,15 +45,23 @@ function Field({ id, label, value, onChange, error, type = "text", autoComplete,
 export default function CheckoutPage() {
   const hydrated = useHydrated();
   const delivery = useDeliveryDate();
-  const { items, fulfillment, setFulfillment } = useCart();
+  const { items, fulfillment, setFulfillment, clear } = useCart();
+  const { user } = useAuth();
+  const localAdmin = useLocalAdminData();
+  const placeOrder = useOrdersStore((s) => s.placeOrder);
   const lines = Object.values(items);
   const totals = calculateCartTotals(lines, fulfillment);
 
   const [f, setF] = useState<Fields>(EMPTY);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [confirmed, setConfirmed] = useState<OrderDraft | null>(null);
+  const [confirmed, setConfirmed] = useState<{ order: LocalOrder; totals: CartTotals } | null>(null);
   const [pending, startTransition] = useTransition();
   const set = (k: keyof Fields) => (v: string) => setF((s) => ({ ...s, [k]: v }));
+
+  // A signed-in customer doesn't retype what the account already knows.
+  useEffect(() => {
+    if (user) setF((s) => ({ ...s, name: s.name || user.name, email: s.email || user.email }));
+  }, [user]);
 
   if (!hydrated) return <div className="mx-auto max-w-5xl px-4 py-16 text-center text-muted">טוען…</div>;
 
@@ -67,16 +80,33 @@ export default function CheckoutPage() {
     e.preventDefault();
     if (!delivery) return;
     startTransition(async () => {
-      const res: CheckoutResult = await prepareOrder({
-        items: lines.map((l) => ({ productId: l.productId, quantity: l.quantity })),
-        fulfillment,
-        deliveryDate: delivery.date,
-        contact: { name: f.name, phone: f.phone, email: f.email },
-        address: fulfillment === "DELIVERY" ? { city: f.city, street: f.street, houseNumber: f.houseNumber, apartment: f.apartment, notes: f.notes } : undefined,
-      });
+      const contact = { name: f.name.trim(), phone: f.phone.trim(), email: f.email.trim() };
+      const address = fulfillment === "DELIVERY" ? { city: f.city, street: f.street, houseNumber: f.houseNumber, apartment: f.apartment, notes: f.notes } : undefined;
+      const res: CheckoutResult = await prepareOrder(
+        { items: lines.map((l) => ({ productId: l.productId, quantity: l.quantity })), fulfillment, deliveryDate: delivery.date, contact, address },
+        localAdmin,
+      );
       if (res.ok) {
+        // Mock persistence: the order is saved in this browser (store/admin.ts), not in a database.
+        const { totals } = res.order;
+        const order = placeOrder({
+          userEmail: user?.email ?? null,
+          fulfillment: res.order.fulfillment,
+          deliveryDate: res.order.deliveryDate,
+          contact,
+          address: address ?? null,
+          lines: res.order.lines,
+          totals: {
+            subtotalAgorot: totals.subtotalAgorot,
+            savingsAgorot: totals.savingsAgorot,
+            deliveryFeeAgorot: totals.deliveryFeeAgorot,
+            totalAgorot: totals.totalAgorot,
+          },
+        });
         setErrors({});
-        setConfirmed(res.order);
+        setConfirmed({ order, totals });
+        clear();
+        window.scrollTo({ top: 0 });
       } else {
         setErrors(res.errors);
       }
@@ -84,32 +114,42 @@ export default function CheckoutPage() {
   }
 
   if (confirmed) {
+    const { order } = confirmed;
     return (
       <div className="mx-auto max-w-2xl space-y-6 px-4 py-16">
         <div className="space-y-2 text-center">
           <p className="text-5xl" aria-hidden>✓</p>
-          <h1 className="font-display text-4xl font-bold">ההזמנה אומתה</h1>
+          <h1 className="font-display text-4xl font-bold">ההזמנה התקבלה</h1>
+          <p className="font-bold text-leaf-700">הזמנה מס׳ {order.orderNumber}</p>
           <p className="text-muted">
-            {confirmed.fulfillment === "DELIVERY" ? "אספקה" : "איסוף"} ב{formatDeliveryDateHe(confirmed.deliveryDate)} · המחירים, הכמויות ודמי המשלוח חושבו מחדש בשרת.
+            {order.fulfillment === "DELIVERY" ? "אספקה" : "איסוף"} ב{formatDeliveryDateHe(order.deliveryDate)} · המחירים, הכמויות ודמי המשלוח חושבו מחדש בשרת.
           </p>
         </div>
         <div className="space-y-2 rounded-3xl bg-paper p-5 ring-1 ring-line">
-          {confirmed.lines.map((l) => (
+          {order.lines.map((l) => (
             <div key={l.productId} className="flex justify-between gap-3 text-sm">
               <span>{l.name} · {formatQuantity(l.quantity, l.saleUnit)}</span>
               <span className="tabular-nums">{formatILS(l.lineTotalAgorot)}</span>
             </div>
           ))}
           <div className="border-t border-line pt-3">
-            <OrderSummary totals={confirmed.totals} fulfillment={confirmed.fulfillment} />
+            <OrderSummary totals={confirmed.totals} fulfillment={order.fulfillment} />
           </div>
         </div>
         <p className="rounded-2xl bg-cream p-4 text-center text-sm text-muted">
-          השלב הבא בפרויקט: התחברות (מייל / Google / Apple), תשלום מאובטח וחשבונית דיגיטלית.
+          גרסת הדגמה: ההזמנה נשמרה בדפדפן הזה בלבד, ללא תשלום. תשלום מאובטח וחשבונית דיגיטלית יתווספו עם החיבור לשרת.
         </p>
-        <button onClick={() => setConfirmed(null)} className="mx-auto block text-sm font-bold text-brand-600 hover:underline">
-          ← חזרה לעריכה
-        </button>
+        <div className="flex flex-wrap justify-center gap-3">
+          <Link href={user ? "/orders" : "/login"} className="rounded-full bg-ink px-7 py-3 text-sm font-bold text-paper hover:bg-brand-500">
+            {user ? "להזמנות שלי" : "התחברות לצפייה בהזמנות"}
+          </Link>
+          <Link href="/catalog" className="rounded-full px-7 py-3 text-sm font-bold ring-1 ring-line hover:bg-brand-50">
+            חזרה לתפריט
+          </Link>
+        </div>
+        {!user && (
+          <p className="text-center text-xs text-muted">התחברו עם אותה כתובת מייל ({order.contact.email}) וההזמנה תופיע תחת ״ההזמנות שלי״.</p>
+        )}
       </div>
     );
   }
@@ -180,7 +220,7 @@ export default function CheckoutPage() {
           disabled={pending || !delivery || !totals.canCheckout}
           className="w-full rounded-full bg-ink py-3.5 font-bold text-paper transition hover:bg-brand-500 disabled:bg-line"
         >
-          {pending ? "מאמת…" : `אישור הזמנה · ${formatILS(totals.totalAgorot)}`}
+          {pending ? "שולח…" : `אישור הזמנה · ${formatILS(totals.totalAgorot)}`}
         </button>
         <p className="text-center text-xs text-muted">🔒 המחיר הסופי מחושב ומאומת בשרת</p>
       </aside>

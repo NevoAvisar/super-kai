@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { CatalogCategory, CatalogProduct } from "@/lib/catalog";
 import { DIETARY, DIETARY_ORDER, type DietaryTag } from "@/lib/dietary";
+import { useLiveCatalog } from "@/lib/use-live-catalog";
 import { ProductGrid } from "./ProductGrid";
 
 interface Props {
@@ -11,7 +12,13 @@ interface Props {
 }
 
 /** Free browsing: search, dietary filters and products grouped by category. No login required. */
-export function CatalogBrowser({ categories, products }: Props) {
+export function CatalogBrowser({ categories, products: baseProducts }: Props) {
+  // Admin edits kept in this browser (prices, stock, new products, promotions) layer over the server catalog.
+  const live = useLiveCatalog(baseProducts);
+  const products = useMemo(() => {
+    const shown = new Set(categories.map((c) => c.slug));
+    return live.filter((p) => shown.has(p.categorySlug));
+  }, [live, categories]);
   const [query, setQuery] = useState("");
   const [onlyDeals, setOnlyDeals] = useState(false);
   const [diet, setDiet] = useState<DietaryTag[]>([]);
