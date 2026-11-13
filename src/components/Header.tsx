@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AuthMenu } from "./auth/AuthMenu";
 import { CartButton } from "./CartButton";
 import { DeliveryBanner } from "./DeliveryBanner";
 
@@ -26,9 +27,7 @@ export function Header() {
         </nav>
         <div className="ms-auto flex items-center gap-3">
           {/* Login is optional while browsing — enforced only at checkout (step 2). */}
-          <Link href="/login" className="text-sm font-medium hover:text-brand-600">
-            התחברות
-          </Link>
+          <AuthMenu />
           <CartButton />
         </div>
       </div>

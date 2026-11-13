@@ -3,41 +3,11 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, KeyRound, LoaderCircle, Mail, UserRound } from "lucide-react";
-import { getSupabase } from "@/lib/supabase";
+import { useAuth, type AuthResult, type SocialProvider } from "@/context/AuthContext";
 
 type Mode = "login" | "signup";
-type Pending = "google" | "apple" | "password" | "reset" | null;
+type Pending = "google" | "apple" | "password" | null;
 type Notice = { kind: "error" | "success"; text: string } | null;
-
-const NOT_CONFIGURED = "ההתחברות עדיין לא זמינה באתר. נסו שוב מאוחר יותר.";
-const GENERIC = "משהו השתבש. בדקו את החיבור לאינטרנט ונסו שוב.";
-
-/** Supabase auth errors → Hebrew the customer can act on. */
-function toHebrew(error: { code?: string; status?: number; message?: string }): string {
-  switch (error.code) {
-    case "invalid_credentials":
-      return "האימייל או הסיסמה שגויים.";
-    case "email_not_confirmed":
-      return "כתובת האימייל עדיין לא אומתה. חפשו את מייל האימות בתיבת הדואר.";
-    case "user_already_exists":
-    case "email_exists":
-      return "כתובת האימייל הזו כבר רשומה. אפשר להתחבר איתה.";
-    case "weak_password":
-      return "הסיסמה חלשה מדי. בחרו סיסמה של 8 תווים לפחות.";
-    case "signup_disabled":
-      return "ההרשמה סגורה כרגע.";
-    case "user_banned":
-      return "החשבון הזה חסום. צרו איתנו קשר לבירור.";
-    case "provider_disabled":
-    case "validation_failed":
-      return "אפשרות ההתחברות הזו אינה זמינה כרגע.";
-    case "over_request_rate_limit":
-    case "over_email_send_rate_limit":
-      return "יותר מדי ניסיונות. המתינו מעט ונסו שוב.";
-  }
-  if (error.status === 429) return "יותר מדי ניסיונות. המתינו מעט ונסו שוב.";
-  return GENERIC;
-}
 
 const inputClass =
   "h-11 w-full rounded-xl border border-line bg-cream/60 text-right text-sm text-ink outline-none transition placeholder:text-muted/70 focus:border-brand-500 focus:bg-paper focus:ring-2 focus:ring-brand-100 disabled:opacity-60";
@@ -70,6 +40,7 @@ function Spinner() {
 /** Login / sign-up card: Google / Apple, or email + password. All copy is Hebrew, laid out RTL. */
 export function AuthForm({ logo }: { logo?: ReactNode }) {
   const router = useRouter();
+  const { user, ready, signInWithEmail, signUpWithEmail, signInWithSocial } = useAuth();
   const [mode, setMode] = useState<Mode>("login");
   const signup = mode === "signup";
   const [name, setName] = useState("");
@@ -80,95 +51,29 @@ export function AuthForm({ logo }: { logo?: ReactNode }) {
   const [notice, setNotice] = useState<Notice>(null);
   const busy = pending !== null;
 
-  // Already signed in, or just back from Google / Apple → leave the login page.
+  // Signed in (just now, or already) → leave the login page. The spinner stays until then.
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search + "&" + window.location.hash.slice(1));
-    if (params.has("error") || params.has("error_description")) {
-      setNotice({ kind: "error", text: "ההתחברות לא הושלמה. נסו שוב." });
-      window.history.replaceState(null, "", window.location.pathname);
-    }
-    const supabase = getSupabase();
-    if (!supabase) return;
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) return;
-      router.replace("/");
-      router.refresh();
-    });
-    return () => data.subscription.unsubscribe();
-  }, [router]);
+    if (ready && user) router.replace(user.role === "admin" ? "/admin" : "/");
+  }, [ready, user, router]);
 
-  async function signInWith(provider: "google" | "apple") {
-    const supabase = getSupabase();
-    if (!supabase) return setNotice({ kind: "error", text: NOT_CONFIGURED });
+  async function run(kind: Exclude<Pending, null>, action: () => Promise<AuthResult>) {
     setNotice(null);
-    setPending(provider);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: { redirectTo: `${window.location.origin}/login` },
-      });
-      // On success the browser is already navigating to the provider — keep the spinner.
-      if (!error) return;
-      setNotice({ kind: "error", text: toHebrew(error) });
-    } catch {
-      setNotice({ kind: "error", text: GENERIC });
-    }
+    setPending(kind);
+    const result = await action();
+    if (result.ok) return;
+    setNotice({ kind: "error", text: result.error });
     setPending(null);
   }
 
-  async function onSubmit(e: FormEvent) {
+  const signInWith = (provider: SocialProvider) => run(provider, () => signInWithSocial(provider));
+
+  function onSubmit(e: FormEvent) {
     e.preventDefault();
-    const supabase = getSupabase();
-    if (!supabase) return setNotice({ kind: "error", text: NOT_CONFIGURED });
-    setNotice(null);
-    setPending("password");
-    try {
-      if (signup) {
-        const { data, error } = await supabase.auth.signUp({
-          email: email.trim(),
-          password,
-          options: { emailRedirectTo: `${window.location.origin}/login`, data: { full_name: name.trim() } },
-        });
-        // With a session, onAuthStateChange redirects — keep the spinner until then.
-        if (!error && data.session) return;
-        if (error) setNotice({ kind: "error", text: toHebrew(error) });
-        // Supabase hides "already registered" behind a user with no identities.
-        else if (data.user?.identities?.length === 0) setNotice({ kind: "error", text: toHebrew({ code: "user_already_exists" }) });
-        else {
-          setNotice({ kind: "success", text: "כמעט סיימנו! שלחנו אליך מייל אימות – לחיצה על הקישור שבו תשלים את ההרשמה." });
-          setPassword("");
-        }
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-        // On success onAuthStateChange redirects — keep the spinner until then.
-        if (!error) return;
-        setNotice({ kind: "error", text: toHebrew(error) });
-      }
-    } catch {
-      setNotice({ kind: "error", text: GENERIC });
-    }
-    setPending(null);
+    run("password", () => (signup ? signUpWithEmail(name, email, password) : signInWithEmail(email, password)));
   }
 
-  async function onForgotPassword() {
-    const supabase = getSupabase();
-    if (!supabase) return setNotice({ kind: "error", text: NOT_CONFIGURED });
-    if (!email.trim()) return setNotice({ kind: "error", text: "הזינו את כתובת האימייל, ונשלח אליה קישור לאיפוס הסיסמה." });
-    setNotice(null);
-    setPending("reset");
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/login`,
-      });
-      setNotice(
-        error
-          ? { kind: "error", text: toHebrew(error) }
-          : { kind: "success", text: "אם הכתובת רשומה אצלנו, שלחנו אליה קישור לאיפוס הסיסמה." },
-      );
-    } catch {
-      setNotice({ kind: "error", text: GENERIC });
-    }
-    setPending(null);
+  function onForgotPassword() {
+    setNotice({ kind: "success", text: "האתר במצב הדגמה ולא שולח מיילים. אפשר להירשם עם כתובת אימייל אחרת." });
   }
 
   return (
@@ -257,8 +162,7 @@ export function AuthForm({ logo }: { logo?: ReactNode }) {
                 disabled={busy}
                 className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-600 hover:text-brand-700 hover:underline disabled:opacity-60"
               >
-                {pending === "reset" && <Spinner />}
-                שכחתי סיסמה?
+                  שכחתי סיסמה?
               </button>
             )}
           </div>
