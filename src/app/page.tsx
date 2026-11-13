@@ -6,6 +6,8 @@ import { PortionGuide } from "@/components/PortionGuide";
 import { portionLinks } from "@/lib/portion-links";
 import { DEFAULT_RULES } from "@/lib/config";
 import { formatILS } from "@/lib/money";
+import { getSignatureDishes } from "@/lib/signature-dishes";
+import { DishOrbitCarousel } from "@/components/dish-orbit/DishOrbitCarousel";
 
 const steps = [
   { n: "01", title: "גולשים בחופשיות", text: "כל התפריט פתוח – בלי הרשמה ובלי התחייבות." },
@@ -15,7 +17,12 @@ const steps = [
 ];
 
 export default async function HomePage() {
-  const [categories, featured, products] = await Promise.all([getCategories(), getFeaturedProducts(8), getProducts()]);
+  const [categories, featured, products, signature] = await Promise.all([
+    getCategories(),
+    getFeaturedProducts(8),
+    getProducts(),
+    getSignatureDishes(8),
+  ]);
   const links = portionLinks(categories);
   // Cover photo per category: its first featured dish, else its first dish.
   const cover = (slug: string) =>
@@ -25,16 +32,19 @@ export default async function HomePage() {
 
   return (
     <>
-      {/* Hero */}
+      {/* Hero — signature dishes on the orbit carousel */}
+      <DishOrbitCarousel dishes={signature} />
+
+      {/* Intro + categories */}
       <section className="border-b border-line">
         <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-16 md:grid-cols-[1.1fr_1fr] md:py-24">
           <div className="space-y-6">
             <p className="text-sm font-bold tracking-wide text-brand-600">מעדנייה ביתית · אוכל מוכן</p>
-            <h1 className="font-display text-5xl font-bold leading-[1.05] md:text-7xl">
+            <h2 className="font-display text-5xl font-bold leading-[1.05] md:text-7xl">
               אוכל של בית,
               <br />
               <span className="text-brand-500">ברמה של מעדנייה.</span>
-            </h1>
+            </h2>
             <p className="max-w-lg text-lg leading-relaxed text-muted">
               ראשונות, עיקריות, תוספות ומרקים שקאי מבשל כל בוקר מחדש – נמכרים לפי משקל, בדיוק בכמות שאתם צריכים.
             </p>
