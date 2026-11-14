@@ -20,6 +20,16 @@
   --color-leaf-50: #f2f3ea;
   --color-leaf-600: #6b7740; /* olive */
   --color-leaf-700: #545e30;
+
+  /* Admin dashboard charts: a validated categorical palette (fixed order) on the paper surface. */
+  --color-viz-blue: #2a78d6;
+  --color-viz-orange: #eb6834;
+  --color-viz-aqua: #1baf7a;
+  --color-viz-yellow: #eda100;
+  --color-viz-magenta: #e87ba4;
+  --color-viz-green: #008300;
+  --color-viz-violet: #6250d6;
+  --color-viz-gray: #b9b2a8;
 }
 
 body {

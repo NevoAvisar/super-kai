@@ -167,7 +167,7 @@ describe("buildCustomers", () => {
       ],
     );
     expect(customers.map((c) => c.email)).toEqual(["guest@example.com", "dana@example.com", "noa@example.com"]);
-    expect(customers[0]).toMatchObject({ name: "אורח", registered: false, phone: "0521111111", totalAgorot: 75_00 });
+    expect(customers[0]).toMatchObject({ name: "אורח", registered: false, city: null, phone: "0521111111", totalAgorot: 75_00 });
     expect(customers[1]).toMatchObject({ name: "דנה כהן", registered: true, phone: "0500000000", totalAgorot: 75_00 });
     expect(customers[1].orders.map((o) => o.orderNumber)).toEqual([2, 1]);
     expect(customers[2]).toMatchObject({ registered: true, orders: [], lastOrderAt: null });

@@ -65,6 +65,13 @@ interface OrdersState {
   nextOrderNumber: number;
   placeOrder: (order: Omit<LocalOrder, "id" | "orderNumber" | "createdAt" | "status">) => LocalOrder;
   setStatus: (id: string, status: OrderStatus) => void;
+  /** True once sample orders were offered, so clearing them doesn't bring them back. */
+  demoSeeded: boolean;
+  seedDemo: (orders: LocalOrder[]) => void;
+  clearDemo: () => void;
+  /** Kitchen checklist: "<deliveryDate>:<productId>" → prepared. */
+  prepped: Record<string, boolean>;
+  togglePrepped: (key: string) => void;
 }
 
 export const useOrdersStore = create<OrdersState>()(
@@ -78,14 +85,25 @@ export const useOrdersStore = create<OrdersState>()(
           ...draft,
           id: newId("order"),
           orderNumber,
-          // No payment step in the mock, so an order starts as received.
-          status: "CONFIRMED",
+          // No payment step in the mock: the order waits for the admin's approval.
+          status: "PENDING_PAYMENT",
           createdAt: new Date().toISOString(),
         };
         set((s) => ({ orders: [...s.orders, order], nextOrderNumber: orderNumber + 1 }));
         return order;
       },
       setStatus: (id, status) => set((s) => ({ orders: s.orders.map((o) => (o.id === id ? { ...o, status } : o)) })),
+      demoSeeded: false,
+      seedDemo: (demo) => set((s) => ({ orders: [...s.orders.filter((o) => !o.isDemo), ...demo], demoSeeded: true })),
+      clearDemo: () => set((s) => ({ orders: s.orders.filter((o) => !o.isDemo), demoSeeded: true })),
+      prepped: {},
+      togglePrepped: (key) =>
+        set((s) => {
+          const prepped = { ...s.prepped };
+          if (prepped[key]) delete prepped[key];
+          else prepped[key] = true;
+          return { prepped };
+        }),
     }),
     { name: "super-kai-orders", version: 1 },
   ),

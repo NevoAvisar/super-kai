@@ -72,6 +72,7 @@ export function PromotionsManager({ categories, products }: Props) {
 
   return (
     <div className="space-y-5">
+      <h1 className="font-display text-3xl font-bold">מבצעים</h1>
       <div className="flex flex-wrap items-center gap-3">
         <p className="text-sm text-muted">{promos.length} מבצעים · כשכמה מבצעים חלים על אותה מנה, הלקוח מקבל את המחיר הנמוך ביותר.</p>
         <button type="button" onClick={() => setEditing(editing === "new" ? null : "new")} className={`${primaryButton} ms-auto`}>

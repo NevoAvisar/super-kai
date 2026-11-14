@@ -120,11 +120,18 @@ src/
 
 | Screen | What it does |
 | --- | --- |
-| `/admin/products` | Edit name, price, stock status (in stock / low / out) and the "shown on site" flag; add a product. |
+| `/admin` | **Overview**: revenue and delivery KPIs with a daily / weekly / monthly toggle and a trend vs the previous period, live order status (pending approval, open, delivered), revenue and delivery trend charts, revenue share per customer, active orders per delivery zone. |
+| `/admin/orders` | **Orders & kitchen prep**, filtered by today / tomorrow / all, in three views: kitchen totals per dish with a "prepared" checklist, active orders grouped by delivery zone with a delivery count, and full order cards with one-click status steps (approve → to kitchen → delivered). |
+| `/admin/customers` | Directory with tier badges (VIP / regular / new), total paid, order count, last order; sort and filter; a drawer with order history and favourite dishes; add a customer. |
+| `/admin/products` | Edit name, price, stock status and the "shown on site" flag; add a product. Best and lowest sellers on top, quantity sold and revenue per row, sort by sales. |
 | `/admin/promotions` | Create, edit and disable a discount on one product or a whole category, with a start and optional end date (`Promotion` model: `PERCENT_OFF` / `AMOUNT_OFF` / `FIXED_PRICE`). |
-| `/admin/orders` | Orders grouped by delivery date, a per-day kitchen summary, and a status control per order. |
-| `/admin/customers` | Everyone with an account or an order: contact details, order count, total and order history; add a customer with a temporary password. |
 | `/orders` | The signed-in customer's own orders (matched by account email or the checkout email). |
+
+**Dashboard numbers** come from pure functions in `src/lib/admin-analytics.ts` (tested): revenue and counts are attributed to the delivery date and never include cancelled orders; delivery zones are a city → zone table in the same file; VIP = 2,000 ₪ paid or 8+ orders, regular = 2+ orders. Charts are plain HTML/SVG (`src/components/admin/charts.tsx`), no chart library.
+
+**Sample orders.** The first time the dashboard opens with fewer than 5 orders, `src/lib/demo-orders.ts` adds about 12 weeks of invented orders (flagged `isDemo`, numbered below 1001) so every chart has data. They mix with real orders placed on the site; the overview has a link to remove them, and another to load them again.
+
+**Order flow in the mock.** There is no payment step, so a new order starts as "ממתינה לאישור" (the schema's `PENDING_PAYMENT`) until the admin approves it.
 
 **How the layering works** (`src/lib/local-admin.ts`, `src/store/admin.ts`, `src/lib/use-live-catalog.ts`):
 - The server still renders the seed catalog. Admin edits are stored in `localStorage` as *overrides* per product id (only the changed fields), *added* products, and *promotions*.

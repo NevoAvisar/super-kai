@@ -1,13 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { TrendingDown, Trophy } from "lucide-react";
+import { productSales, type ProductSales } from "@/lib/admin-analytics";
+import { formatQuantity } from "@/lib/quantity";
 import type { CatalogCategory, CatalogProduct } from "@/lib/catalog";
 import { adminProducts, STOCK_LABEL, type AdminProduct, type StockStatus } from "@/lib/local-admin";
 import { useLocalAdminData, useMinuteClock } from "@/lib/use-live-catalog";
 import { useHydrated } from "@/lib/use-hydrated";
 import { formatILS } from "@/lib/money";
 import type { SaleUnit } from "@/lib/quantity";
-import { useAdminStore } from "@/store/admin";
+import { useAdminStore, useOrdersStore } from "@/store/admin";
 import { inputClass, Labeled, parseShekels, primaryButton, quietButton, shekelsText } from "./AdminShell";
 
 interface Props {
@@ -16,6 +19,9 @@ interface Props {
 }
 
 const STOCK_OPTIONS = Object.keys(STOCK_LABEL) as StockStatus[];
+type Sort = "menu" | "best" | "worst";
+const SORT_LABEL: Record<Sort, string> = { menu: "סדר התפריט", best: "הנמכרים ביותר", worst: "הכי פחות נמכרים" };
+const NO_SALES: ProductSales = { quantity: 0, revenueAgorot: 0, orders: 0 };
 const unitText = (u: SaleUnit) => (u === "KG" ? "לק״ג" : "ליח׳");
 
 export function ProductsManager({ categories, products }: Props) {
@@ -26,6 +32,10 @@ export function ProductsManager({ categories, products }: Props) {
 
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
+  const [sort, setSort] = useState<Sort>("menu");
+  const orders = useOrdersStore((s) => s.orders);
+  const sales = useMemo(() => productSales(orders), [orders]);
+  const sold = (id: string) => sales.get(id) ?? NO_SALES;
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -36,7 +46,16 @@ export function ProductsManager({ categories, products }: Props) {
   if (!hydrated) return <p className="py-16 text-center text-muted">טוען…</p>;
 
   const q = query.trim();
-  const shown = rows.filter((p) => (!q || p.name.includes(q)) && (!category || p.categorySlug === category));
+  const byRevenue = (a: AdminProduct, b: AdminProduct) => sold(b.id).revenueAgorot - sold(a.id).revenueAgorot || a.name.localeCompare(b.name, "he");
+  const filtered = rows.filter((p) => (!q || p.name.includes(q)) && (!category || p.categorySlug === category));
+  const shown = sort === "menu" ? filtered : [...filtered].sort(sort === "best" ? byRevenue : (a, b) => byRevenue(b, a));
+
+  // Highlights look at the products customers can actually buy.
+  const onSale = rows.filter((p) => p.isActive);
+  const ranked = [...onSale].sort(byRevenue);
+  const best = ranked.filter((p) => sold(p.id).orders > 0).slice(0, 3);
+  const worst = [...ranked].reverse().slice(0, 3);
+  const neverSold = onSale.filter((p) => sold(p.id).orders === 0).length;
 
   /** Saves a change; a seed field set back to its original value drops out of the override. */
   function update(p: AdminProduct, patch: { name?: string; priceAgorot?: number; stockStatus?: StockStatus; isActive?: boolean }) {
@@ -53,7 +72,30 @@ export function ProductsManager({ categories, products }: Props) {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <h1 className="font-display text-3xl font-bold">מוצרים</h1>
+
+      {sales.size > 0 && (
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <SalesHighlight
+            icon={<Trophy className="size-5" aria-hidden />}
+            tone="bg-viz-yellow/25 text-amber-900"
+            title="המוצרים הכי נמכרים"
+            note="לפי הכנסה, מכל ההזמנות שלא בוטלו"
+            products={best}
+            sold={sold}
+          />
+          <SalesHighlight
+            icon={<TrendingDown className="size-5" aria-hidden />}
+            tone="bg-brand-100 text-brand-700"
+            title="המוצרים הכי פחות נמכרים"
+            note={neverSold ? `${neverSold} מוצרים עוד לא נמכרו בכלל. שווה לשקול מבצע או שינוי בתפריט.` : "מועמדים למבצע או לשינוי בתפריט"}
+            products={worst}
+            sold={sold}
+          />
+        </div>
+      )}
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <input
           type="search"
           value={query}
@@ -66,6 +108,11 @@ export function ProductsManager({ categories, products }: Props) {
           <option value="">כל הקטגוריות</option>
           {categories.map((c) => (
             <option key={c.slug} value={c.slug}>{c.name}</option>
+          ))}
+        </select>
+        <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="מיון המוצרים" className={`${inputClass} sm:max-w-48`}>
+          {(Object.keys(SORT_LABEL) as Sort[]).map((o) => (
+            <option key={o} value={o}>{SORT_LABEL[o]}</option>
           ))}
         </select>
         <span className="text-sm text-muted">{shown.length} מוצרים</span>
@@ -106,6 +153,16 @@ export function ProductsManager({ categories, products }: Props) {
                       <span className="text-brand-600"> · במבצע {formatILS(p.priceAgorot)}</span>
                     )}
                   </p>
+                  <p className="mt-0.5 text-xs text-muted">
+                    {sold(p.id).orders > 0 ? (
+                      <>
+                        כמות שנמכרה: <b className="text-ink tabular-nums">{formatQuantity(sold(p.id).quantity, p.saleUnit)}</b> · הכנסה ממוצר:{" "}
+                        <b className="text-ink tabular-nums">{formatILS(sold(p.id).revenueAgorot)}</b> · ב-{sold(p.id).orders} הזמנות
+                      </>
+                    ) : (
+                      "עדיין לא נמכר"
+                    )}
+                  </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <select
@@ -142,6 +199,41 @@ export function ProductsManager({ categories, products }: Props) {
         ))}
       </ul>
     </div>
+  );
+}
+
+function SalesHighlight({ icon, tone, title, note, products, sold }: {
+  icon: React.ReactNode;
+  tone: string;
+  title: string;
+  note: string;
+  products: AdminProduct[];
+  sold: (id: string) => ProductSales;
+}) {
+  return (
+    <section className="min-w-0 rounded-3xl bg-paper p-5 ring-1 ring-line">
+      <div className="flex items-center gap-3">
+        <span className={`flex size-10 shrink-0 items-center justify-center rounded-2xl ${tone}`}>{icon}</span>
+        <div className="min-w-0">
+          <h2 className="font-display text-xl font-bold">{title}</h2>
+          <p className="text-xs text-muted">{note}</p>
+        </div>
+      </div>
+      <ol className="mt-4 space-y-2 text-sm">
+        {products.map((p, i) => (
+          <li key={p.id} className="flex items-center gap-3 rounded-2xl bg-cream px-3 py-2">
+            <span className="font-display text-lg font-bold text-muted">{i + 1}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-bold">{p.name}</span>
+              <span className="block text-xs text-muted">
+                {sold(p.id).orders > 0 ? `${formatQuantity(sold(p.id).quantity, p.saleUnit)} · ב-${sold(p.id).orders} הזמנות` : "עדיין לא נמכר"}
+              </span>
+            </span>
+            <span className="font-display text-lg font-bold tabular-nums">{formatILS(sold(p.id).revenueAgorot)}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 
