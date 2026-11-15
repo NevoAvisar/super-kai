@@ -78,7 +78,8 @@ export const PICKUP_ZONE: Zone = { id: "pickup", label: "איסוף עצמי" };
 export const OTHER_ZONE: Zone = { id: "other", label: "אזורים אחרים" };
 export const ALL_ZONES: Zone[] = [...ZONES.map(({ id, label }) => ({ id, label })), OTHER_ZONE, PICKUP_ZONE];
 
-const normalizeCity = (city: string) => city.replace(/["״'׳]/g, "").replace(/\s+/g, " ").trim();
+/** Also folds the official spellings ("תל אביב - יפו", "מודיעין-מכבים-רעות") into the plain ones. */
+const normalizeCity = (city: string) => city.replace(/["״'׳]/g, "").replace(/[-־–]/g, " ").replace(/\s+/g, " ").trim();
 
 export function zoneForCity(city: string | null | undefined): Zone {
   if (!city?.trim()) return OTHER_ZONE;

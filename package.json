@@ -16,6 +16,7 @@
     "menu:export": "tsx scripts/export-menu.ts",
     "generate-images": "tsx scripts/generate-images.ts",
     "fetch-photos": "tsx scripts/fetch-photos.ts",
+    "addresses:fetch": "tsx scripts/fetch-il-addresses.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

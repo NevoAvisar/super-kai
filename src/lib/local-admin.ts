@@ -3,6 +3,7 @@ import type { PortionGroup } from "@/data/catalog-seed";
 import type { CartTotals, FulfillmentType, PromotionLike } from "./pricing";
 import { applyPromotion, isPromotionLive, pricePer100g } from "./pricing";
 import type { DateOnly } from "./delivery-date";
+import type { CustomerAddress } from "./il-address/validate";
 import type { SaleUnit } from "./quantity";
 
 /**
@@ -314,8 +315,10 @@ export interface AdminCustomer {
   email: string;
   name: string;
   phone: string | null;
-  /** City of the most recent delivery address, if any. */
+  /** City of the account's address, else of the most recent delivery address. */
   city: string | null;
+  /** The verified address on the account, if one was entered. */
+  address: CustomerAddress | null;
   /** Has an account (can sign in); false for a guest known only from an order. */
   registered: boolean;
   orders: LocalOrder[];
@@ -326,22 +329,22 @@ export interface AdminCustomer {
 
 /** Registered accounts merged with everyone who placed an order, most recent buyers first. */
 export function buildCustomers(
-  accounts: { email: string; name: string; phone?: string }[],
+  accounts: { email: string; name: string; phone?: string; address?: CustomerAddress }[],
   orders: LocalOrder[],
 ): AdminCustomer[] {
   const byEmail = new Map<string, AdminCustomer>();
   const key = (email: string) => email.trim().toLowerCase();
 
   for (const a of accounts) {
-    byEmail.set(key(a.email), { email: key(a.email), name: a.name, phone: a.phone ?? null, city: null, registered: true, orders: [], totalAgorot: 0, lastOrderAt: null });
+    byEmail.set(key(a.email), { email: key(a.email), name: a.name, phone: a.phone ?? null, city: a.address?.city ?? null, address: a.address ?? null, registered: true, orders: [], totalAgorot: 0, lastOrderAt: null });
   }
   for (const o of [...orders].sort((a, b) => a.createdAt.localeCompare(b.createdAt))) {
     const email = key(o.userEmail ?? o.contact.email);
-    const c = byEmail.get(email) ?? { email, name: o.contact.name, phone: null, city: null, registered: false, orders: [], totalAgorot: 0, lastOrderAt: null };
+    const c = byEmail.get(email) ?? { email, name: o.contact.name, phone: null, city: null, address: null, registered: false, orders: [], totalAgorot: 0, lastOrderAt: null };
     c.orders = [o, ...c.orders]; // newest first
     if (o.userEmail) c.registered = true; // ordered while signed in (e.g. a social login)
     c.phone ??= o.contact.phone || null;
-    if (o.address?.city.trim()) c.city = o.address.city.trim();
+    if (!c.address && o.address?.city.trim()) c.city = o.address.city.trim();
     if (o.status !== "CANCELLED") c.totalAgorot += o.totals.totalAgorot;
     c.lastOrderAt = o.createdAt;
     byEmail.set(email, c);

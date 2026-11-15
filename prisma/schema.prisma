@@ -174,14 +174,27 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+/// A customer address. City and street are never free text: both are verified
+/// on the server against the official data.gov.il localities-and-streets list
+/// (src/lib/il-address) and stored with their official codes and names.
 model Address {
   id          String  @id @default(cuid())
   userId      String
   label       String? // "בית", "עבודה"
+  /// סמל יישוב (CBS locality code)
+  cityCode    Int
+  /// Official locality name, as in the dataset
   city        String
+  /// סמל רחוב inside the city; 9000 = a locality with no street names
+  /// (kibbutz, small village), where `street` holds the locality name
+  streetCode  Int
   street      String
+  /// "12", "12א"
   houseNumber String
+  /// "א", "ב"
+  entrance    String?
   apartment   String?
+  /// "3", "קרקע"
   floor       String?
   entryCode   String?
   notes       String?
@@ -193,6 +206,7 @@ model Address {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+  @@index([cityCode])
 }
 
 // -----------------------------------------------------------------------------

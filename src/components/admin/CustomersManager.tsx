@@ -2,13 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
-import { addCustomerAccount, listCustomerAccounts, type CustomerAccount } from "@/context/AuthContext";
+import { verifyCustomerAddress } from "@/app/admin/customers/actions";
+import { addCustomerAccount, isEmailTaken, listCustomerAccounts, setCustomerAddress, type CustomerAccount } from "@/context/AuthContext";
 import { OrderStatusBadge } from "@/components/OrderCard";
 import { customerTier, favoriteDishes, TIER_LABEL, zoneForCity, type CustomerTier } from "@/lib/admin-analytics";
 import { formatDeliveryDateHe } from "@/lib/delivery-date";
+import { formatAddress, type AddressErrors, type CustomerAddress } from "@/lib/il-address/validate";
 import { buildCustomers, type AdminCustomer } from "@/lib/local-admin";
 import { formatILS } from "@/lib/money";
 import { useOrdersStore } from "@/store/admin";
+import { AddressFields, draftErrors, draftFromAddress, draftToInput, EMPTY_ADDRESS, type AddressDraft } from "./AddressFields";
 import { inputClass, Labeled, primaryButton, quietButton } from "./AdminShell";
 import { SERIES } from "./charts";
 
@@ -197,12 +200,58 @@ export function CustomersManager() {
         </div>
       )}
 
-      {opened && <CustomerDrawer customer={opened} onClose={() => setOpenEmail(null)} />}
+      {opened && (
+        <CustomerDrawer
+          customer={opened}
+          canEditAddress={accounts.some((a) => a.email === opened.email)}
+          onSaved={reload}
+          onClose={() => setOpenEmail(null)}
+        />
+      )}
     </div>
   );
 }
 
-function CustomerDrawer({ customer: c, onClose }: { customer: AdminCustomer; onClose: () => void }) {
+/** Client check, then the server's verdict; only the server's canonical address is ever stored. */
+async function verifyDraft(draft: AddressDraft): Promise<{ address: CustomerAddress } | { errors: AddressErrors }> {
+  const errors = draftErrors(draft);
+  if (Object.keys(errors).length) return { errors };
+  try {
+    const res = await verifyCustomerAddress(draftToInput(draft));
+    return res.ok ? { address: res.address } : { errors: res.errors };
+  } catch {
+    return { errors: { city: "לא ניתן לאמת את הכתובת כרגע. בדקו את החיבור ונסו שוב." } };
+  }
+}
+
+function AddressEditor({ email, address, onSaved, onCancel }: { email: string; address: CustomerAddress | null; onSaved: () => void; onCancel: () => void }) {
+  const [draft, setDraft] = useState<AddressDraft>(() => draftFromAddress(address));
+  const [errors, setErrors] = useState<AddressErrors>({});
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    const res = await verifyDraft(draft);
+    setBusy(false);
+    if ("errors" in res) return setErrors(res.errors);
+    if (!setCustomerAddress(email, res.address)) return setErrors({ city: "החשבון לא נמצא. רעננו את העמוד ונסו שוב." });
+    onSaved();
+  }
+
+  return (
+    <form onSubmit={submit} noValidate className="space-y-4">
+      <AddressFields value={draft} onChange={(next) => (setDraft(next), setErrors({}))} errors={errors} />
+      <div className="flex gap-2">
+        <button type="submit" disabled={busy} className={primaryButton}>{busy ? "בודק…" : "שמירת כתובת"}</button>
+        <button type="button" onClick={onCancel} className={quietButton}>ביטול</button>
+      </div>
+    </form>
+  );
+}
+
+function CustomerDrawer({ customer: c, canEditAddress, onSaved, onClose }: { customer: AdminCustomer; canEditAddress: boolean; onSaved: () => void; onClose: () => void }) {
+  const [editing, setEditing] = useState(false);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
@@ -259,6 +308,34 @@ function CustomerDrawer({ customer: c, onClose }: { customer: AdminCustomer; onC
             <p className="text-muted">{c.registered ? "יש ללקוח חשבון באתר" : "הזמין כאורח, בלי חשבון"}</p>
           </div>
 
+          {(c.address || canEditAddress) && (
+            <section className="rounded-2xl bg-paper p-4 text-sm ring-1 ring-line">
+              {editing ? (
+                <AddressEditor
+                  email={c.email}
+                  address={c.address}
+                  onCancel={() => setEditing(false)}
+                  onSaved={() => {
+                    onSaved();
+                    setEditing(false);
+                  }}
+                />
+              ) : (
+                <div className="flex items-start gap-3">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-display text-lg font-bold">כתובת</h3>
+                    <p className={c.address ? "" : "text-muted"}>{c.address ? formatAddress(c.address) : "עדיין לא הוזנה כתובת."}</p>
+                  </div>
+                  {canEditAddress && (
+                    <button type="button" onClick={() => setEditing(true)} className={quietButton}>
+                      {c.address ? "עריכה" : "הוספת כתובת"}
+                    </button>
+                  )}
+                </div>
+              )}
+            </section>
+          )}
+
           <section>
             <h3 className="font-display text-lg font-bold">המנות האהובות</h3>
             {favorites.length ? (
@@ -306,9 +383,12 @@ function CustomerDrawer({ customer: c, onClose }: { customer: AdminCustomer; onC
 function AddCustomerForm({ onAdded, onCancel }: { onAdded: () => void; onCancel: () => void }) {
   const [f, setF] = useState({ name: "", email: "", phone: "", password: "" });
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
+  const [address, setAddress] = useState<AddressDraft>(EMPTY_ADDRESS);
+  const [addressErrors, setAddressErrors] = useState<AddressErrors>({});
+  const [busy, setBusy] = useState(false);
   const set = (k: keyof typeof f) => (v: string) => setF((s) => ({ ...s, [k]: v }));
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     const phone = f.phone.replace(/\s/g, "");
     const next: Record<string, string | undefined> = {
@@ -317,12 +397,18 @@ function AddCustomerForm({ onAdded, onCancel }: { onAdded: () => void; onCancel:
       phone: phone && !PHONE.test(phone) ? "מספר טלפון לא תקין." : undefined,
       password: f.password.length < 6 ? "סיסמה של 6 תווים לפחות." : undefined,
     };
-    if (!Object.values(next).some(Boolean)) {
-      const res = addCustomerAccount({ name: f.name, email: f.email, phone, password: f.password });
-      if (res.ok) return onAdded();
-      next.email = res.error;
-    }
+    if (!next.email && isEmailTaken(f.email)) next.email = "כתובת האימייל הזו כבר רשומה.";
     setErrors(next);
+    // The address is always checked, so every problem shows in one go.
+    setBusy(true);
+    const verified = await verifyDraft(address);
+    setBusy(false);
+    setAddressErrors("errors" in verified ? verified.errors : {});
+    if ("errors" in verified || Object.values(next).some(Boolean)) return;
+
+    const res = addCustomerAccount({ name: f.name, email: f.email, phone, password: f.password, address: verified.address });
+    if (res.ok) return onAdded();
+    setErrors({ ...next, email: res.error });
   }
 
   return (
@@ -342,9 +428,12 @@ function AddCustomerForm({ onAdded, onCancel }: { onAdded: () => void; onCancel:
           <input value={f.password} onChange={(e) => set("password")(e.target.value)} autoComplete="off" dir="ltr" className={`${inputClass} text-right`} />
         </Labeled>
       </div>
-      <p className="text-xs text-muted">הלקוח יוכל להתחבר לאתר עם המייל והסיסמה הזמנית, והפרטים ימולאו עבורו בקופה.</p>
+      <AddressFields value={address} onChange={(next) => (setAddress(next), setAddressErrors({}))} errors={addressErrors} />
+      <p className="text-xs text-muted">
+        עיר ורחוב נבחרים מהרשימה הרשמית של יישובי ורחובות ישראל (data.gov.il) ונבדקים שוב בשרת לפני השמירה. הלקוח יוכל להתחבר לאתר עם המייל והסיסמה הזמנית.
+      </p>
       <div className="flex gap-2">
-        <button type="submit" className={primaryButton}>הוספת לקוח</button>
+        <button type="submit" disabled={busy} className={primaryButton}>{busy ? "בודק כתובת…" : "הוספת לקוח"}</button>
         <button type="button" onClick={onCancel} className={quietButton}>ביטול</button>
       </div>
     </form>

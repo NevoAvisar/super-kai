@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import type { CustomerAddress } from "@/lib/il-address/validate";
 
 /**
  * LOCAL MOCK AUTHENTICATION — for trying the site without a backend.
@@ -20,6 +21,8 @@ export interface AuthUser {
   role: Role;
   provider: "password" | SocialProvider;
   phone?: string;
+  /** Verified against the official cities-and-streets list (admin/customers/actions.ts). */
+  address?: CustomerAddress;
 }
 
 interface StoredUser extends AuthUser {
@@ -90,7 +93,21 @@ export function listCustomerAccounts(): CustomerAccount[] {
     .map(({ password: _password, role: _role, ...account }) => account);
 }
 
-export function addCustomerAccount(input: { name: string; email: string; phone?: string; password: string }): { ok: true } | { ok: false; error: string } {
+export const isEmailTaken = (rawEmail: string) => {
+  const email = normalize(rawEmail);
+  return email === ADMIN.email || read<StoredUser[]>(USERS_KEY, []).some((u) => u.email === email);
+};
+
+/** Store a verified address on a registered customer; false when there is no such account. */
+export function setCustomerAddress(rawEmail: string, address: CustomerAddress): boolean {
+  const email = normalize(rawEmail);
+  const users = read<StoredUser[]>(USERS_KEY, []);
+  if (!users.some((u) => u.email === email && u.role === "customer")) return false;
+  write(USERS_KEY, users.map((u) => (u.email === email ? { ...u, address } : u)));
+  return true;
+}
+
+export function addCustomerAccount(input: { name: string; email: string; phone?: string; password: string; address?: CustomerAddress }): { ok: true } | { ok: false; error: string } {
   const email = normalize(input.email);
   const users = read<StoredUser[]>(USERS_KEY, []);
   if (email === ADMIN.email || users.some((u) => u.email === email)) {
@@ -103,6 +120,7 @@ export function addCustomerAccount(input: { name: string; email: string; phone?:
     role: "customer",
     provider: "password",
     ...(input.phone?.trim() && { phone: input.phone.trim() }),
+    ...(input.address && { address: input.address }),
   };
   write(USERS_KEY, [...users, created]);
   return { ok: true };
