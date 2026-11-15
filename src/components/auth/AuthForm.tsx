@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, KeyRound, LoaderCircle, Mail, UserRound } from "lucide-react";
 import { useAuth, type AuthResult, type SocialProvider } from "@/context/AuthContext";
+import { safeNextPath } from "@/lib/safe-redirect";
 
 type Mode = "login" | "signup";
 type Pending = "google" | "apple" | "password" | null;
@@ -52,8 +53,13 @@ export function AuthForm({ logo }: { logo?: ReactNode }) {
   const busy = pending !== null;
 
   // Signed in (just now, or already) → leave the login page. The spinner stays until then.
+  // QA fix: honour "?next=" (e.g. /checkout) so the guest cart flow resumes where it left off.
+  // Before, every login landed on "/" and the customer had to find the cart again.
+  // HE: תיקון QA – חזרה לעמוד שממנו הגיעו (למשל הקופה) במקום לדף הבית. הסל נשמר ב-localStorage.
   useEffect(() => {
-    if (ready && user) router.replace(user.role === "admin" ? "/admin" : "/");
+    if (!ready || !user) return;
+    const next = new URLSearchParams(window.location.search).get("next");
+    router.replace(safeNextPath(next, user.role === "admin" ? "/admin" : "/"));
   }, [ready, user, router]);
 
   async function run(kind: Exclude<Pending, null>, action: () => Promise<AuthResult>) {

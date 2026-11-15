@@ -28,7 +28,7 @@ export function ProductsManager({ categories, products }: Props) {
   const hydrated = useHydrated();
   const data = useLocalAdminData();
   const now = useMinuteClock();
-  const { patchProduct, patchAddedProduct, resetProduct } = useAdminStore.getState();
+  const { patchProduct, patchAddedProduct, resetProduct, deleteAddedProduct } = useAdminStore.getState();
 
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
@@ -175,7 +175,7 @@ export function ProductsManager({ categories, products }: Props) {
                       <option key={s} value={s}>{STOCK_LABEL[s]}</option>
                     ))}
                   </select>
-                  <label className="flex cursor-pointer items-center gap-2 rounded-full px-3 py-2 text-sm ring-1 ring-line">
+                  <label className="flex min-h-10 cursor-pointer items-center gap-2 rounded-full px-3 py-2 text-sm ring-1 ring-line" title="ביטול הסימון מסתיר את המוצר מהאתר בלי למחוק היסטוריית הזמנות">
                     <input
                       type="checkbox"
                       checked={p.isActive}
@@ -187,6 +187,15 @@ export function ProductsManager({ categories, products }: Props) {
                   <button type="button" onClick={() => setEditingId(p.id)} className={quietButton}>
                     עריכה
                   </button>
+                  {p.isLocal && (
+                    <button
+                      type="button"
+                      onClick={() => window.confirm(`למחוק את "${p.name}"? אי אפשר לבטל.`) && deleteAddedProduct(p.id)}
+                      className="px-2 py-2 text-sm font-bold text-brand-700 hover:underline"
+                    >
+                      מחיקה
+                    </button>
+                  )}
                   {p.isModified && (
                     <button type="button" onClick={() => resetProduct(p.id)} className="px-2 py-2 text-sm font-bold text-brand-600 hover:underline">
                       איפוס

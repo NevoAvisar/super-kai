@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildDataset } from "./il-address/dataset";
-import { validateCheckout, type CheckoutInput, type PricedProduct } from "./checkout";
+import { normalizeCheckoutInput, validateCheckout, type CheckoutInput, type PricedProduct } from "./checkout";
 
 const row = (cityCode: number, city: string, streetCode: number, street: string) => ({ סמל_ישוב: cityCode, שם_ישוב: city, סמל_רחוב: streetCode, שם_רחוב: street });
 const addresses = buildDataset(
@@ -69,5 +69,44 @@ describe("validateCheckout", () => {
   });
   it("does not need an address for pickup", () => {
     expect(validateCheckout({ ...base, fulfillment: "PICKUP", address: undefined }, catalog, addresses, morning).ok).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// QA audit (2026-11): server-action hardening / הקשחת פעולת השרת
+// ---------------------------------------------------------------------------
+describe("QA: malformed or abusive checkout input", () => {
+  it("normalizes garbage input instead of throwing (no 500 from the action)", () => {
+    for (const raw of [null, undefined, 42, "x", { contact: null, items: "nope" }, { items: [null, { productId: 5 }] }]) {
+      const r = validateCheckout(normalizeCheckoutInput(raw), catalog, addresses, morning);
+      expect(r.ok).toBe(false);
+    }
+  });
+  it("keeps a well-formed input unchanged", () => {
+    const r = validateCheckout(normalizeCheckoutInput(base), catalog, addresses, morning);
+    expect(r.ok).toBe(true);
+  });
+  it("rejects the same product listed twice", () => {
+    const r = validateCheckout({ ...base, items: [base.items[0], base.items[0]] }, catalog, addresses, morning);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.items).toMatch(/פעמיים/);
+  });
+  it("rejects a line above the per-line cap (30 kg / 50 units)", () => {
+    expect(validateCheckout({ ...base, items: [{ productId: "brisket", quantity: 30 }] }, catalog, addresses, morning).ok).toBe(true);
+    expect(validateCheckout({ ...base, items: [{ productId: "brisket", quantity: 30.25 }] }, catalog, addresses, morning).ok).toBe(false);
+    expect(validateCheckout({ ...base, items: [{ productId: "soup", quantity: 51 }] }, catalog, addresses, morning).ok).toBe(false);
+  });
+  it("rejects NaN, negative and Infinity quantities", () => {
+    for (const quantity of [NaN, -0.25, Infinity, 0]) {
+      expect(validateCheckout({ ...base, items: [{ productId: "brisket", quantity }] }, catalog, addresses, morning).ok).toBe(false);
+    }
+  });
+  it("delivery fee boundary: 149.99 ₪ pays, exactly 150 ₪ is free", () => {
+    const cheap: PricedProduct = { id: "c", name: "c", saleUnit: "UNIT", priceAgorot: 149_99, listPriceAgorot: 149_99, inStock: true };
+    const even: PricedProduct = { id: "e", name: "e", saleUnit: "UNIT", priceAgorot: 150_00, listPriceAgorot: 150_00, inStock: true };
+    const a = validateCheckout({ ...base, items: [{ productId: "c", quantity: 1 }] }, [cheap], addresses, morning);
+    const b = validateCheckout({ ...base, items: [{ productId: "e", quantity: 1 }] }, [even], addresses, morning);
+    expect(a.ok && a.order.totals.deliveryFeeAgorot).toBe(25_00);
+    expect(b.ok && b.order.totals.deliveryFeeAgorot).toBe(0);
   });
 });

@@ -48,7 +48,13 @@ export function DishOrbitCarousel({ dishes: baseDishes }: { dishes: OrbitDish[] 
   const dishes = useMemo(() => {
     if (liveProducts === baseProducts) return baseDishes;
     const byId = new Map(liveProducts.map((p) => [p.id, p]));
-    return baseDishes.map((d) => ({ ...d, product: byId.get(d.product.id) ?? d.product }));
+    // QA fix: a dish the admin hid (missing from the live list) or marked sold out
+    // used to stay on the hero with a working "add" path. It now drops out.
+    // HE: מנה שהוסתרה או אזלה יורדת מהקרוסלה (בעבר נשארה מוצגת).
+    return baseDishes.flatMap((d) => {
+      const product = byId.get(d.product.id);
+      return product && product.inStock ? [{ ...d, product }] : [];
+    });
   }, [baseDishes, baseProducts, liveProducts]);
   const n = dishes.length + 1; // welcome + dishes
   const accents = useMemo(() => [WELCOME.accent, ...dishes.map((d) => d.accent)], [dishes]);

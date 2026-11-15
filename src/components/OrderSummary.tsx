@@ -1,7 +1,7 @@
 "use client";
 
 import type { CartTotals, FulfillmentType } from "@/lib/pricing";
-import { DEFAULT_RULES } from "@/lib/config";
+import { cutoffLabel, DEFAULT_RULES } from "@/lib/config";
 import { formatILS } from "@/lib/money";
 
 /** Totals block shared by the cart and checkout: subtotal, savings, delivery fee, total. */
@@ -75,7 +75,10 @@ export function DeliveryDateNote({ label, pastCutoff, fulfillment }: { label: st
     <div className="rounded-2xl bg-leaf-50 p-3 text-sm text-leaf-700">
       <p className="font-bold">📅 {fulfillment === "DELIVERY" ? "אספקה" : "איסוף"} ב{label ?? "…"}</p>
       <p className="text-xs opacity-80">
-        {pastCutoff ? "הוזמן אחרי 14:30, לכן ההזמנה מתוכננת ליום שאחרי מחר." : "הזמנה עד 14:30 מסופקת למחרת."}
+        {/* QA: copy follows StoreRules instead of a hard-coded "14:30". Closed days (Saturday) can push it further. */}
+        {pastCutoff
+          ? `הוזמן אחרי ${cutoffLabel()}, לכן ההזמנה מתוכננת ליום שאחרי מחר (או ליום הפתוח הבא).`
+          : `הזמנה עד ${cutoffLabel()} מסופקת למחרת (או ביום הפתוח הבא).`}
       </p>
     </div>
   );

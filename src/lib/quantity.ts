@@ -1,4 +1,4 @@
-import { KG_STEP } from "./config";
+import { KG_STEP, MAX_LINE_QUANTITY } from "./config";
 
 export type SaleUnit = "KG" | "UNIT";
 
@@ -20,10 +20,19 @@ export function fromSteps(steps: number, unit: SaleUnit): number {
   return Math.round(steps * stepFor(unit) * 100) / 100;
 }
 
-/** Next quantity after one "+" click. */
-export function incrementQuantity(current: number, unit: SaleUnit, max?: number): number {
+/** Largest quantity one cart line may hold (30 kg / 50 units by default). */
+export function maxQuantityFor(unit: SaleUnit): number {
+  return MAX_LINE_QUANTITY[unit];
+}
+
+/**
+ * Next quantity after one "+" click. Never exceeds `max` (defaults to the
+ * per-line cap) — QA fix: the stepper previously had no upper bound.
+ * HE: תיקון QA – לסטפר לא הייתה תקרה, עכשיו הוא נעצר בתקרת השורה.
+ */
+export function incrementQuantity(current: number, unit: SaleUnit, max: number = maxQuantityFor(unit)): number {
   const next = fromSteps(toSteps(current, unit) + 1, unit);
-  return max !== undefined && next > max ? current : next;
+  return next > max ? current : next;
 }
 
 /** Next quantity after one "−" click. Returns 0 when the item should be removed. */

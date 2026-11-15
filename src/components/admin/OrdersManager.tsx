@@ -15,6 +15,7 @@ import { formatDeliveryDateHe, type DateOnly } from "@/lib/delivery-date";
 import { groupOrdersByDeliveryDate, ORDER_STATUSES, ORDER_STATUS_LABEL, type LocalOrder, type OrderStatus } from "@/lib/local-admin";
 import { formatILS } from "@/lib/money";
 import { formatAddress } from "@/lib/il-address/validate";
+import { customerOrderMessage, dailySummaryMessage, mailtoLink, whatsAppLink } from "@/lib/notifications";
 import { formatQuantity } from "@/lib/quantity";
 import { useHydrated } from "@/lib/use-hydrated";
 import { useOrdersStore } from "@/store/admin";
@@ -59,7 +60,18 @@ export function OrdersManager() {
 
   return (
     <div className="space-y-5">
-      <h1 className="font-display text-3xl font-bold">הזמנות והכנות מטבח</h1>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="font-display text-3xl font-bold">הזמנות והכנות מטבח</h1>
+        {/* QA: daily summary report — opens WhatsApp with tomorrow's (or today's) totals ready to send. */}
+        <a
+          href={whatsAppLink(null, dailySummaryMessage(orders, day === "today" ? today : tomorrow))}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`${quietButton} sm:ms-auto`}
+        >
+          📋 שליחת סיכום {day === "today" ? "היום" : "מחר"} בוואטסאפ
+        </a>
+      </div>
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <Segmented
           value={day}
@@ -168,7 +180,7 @@ function KitchenView({ orders }: { orders: LocalOrder[] }) {
                           checked={ready}
                           onChange={() => togglePrepped(key)}
                           aria-label={`${r.name} מוכן במטבח`}
-                          className="size-5 cursor-pointer accent-leaf-600"
+                          className="size-6 cursor-pointer accent-leaf-600"
                         />
                       </td>
                     </tr>
@@ -279,6 +291,23 @@ function OrdersView({ orders, today }: { orders: LocalOrder[]; today: DateOnly }
                     </p>
                   </div>
                   <OrderLines order={o} />
+                  {/* QA: customer notification (WhatsApp / Email) with the current status, one tap each. */}
+                  <div className="flex flex-wrap gap-2 text-sm">
+                    <a
+                      href={whatsAppLink(o.contact.phone, customerOrderMessage(o))}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-full bg-leaf-50 px-3 py-2 font-bold text-leaf-700 hover:bg-leaf-600 hover:text-white"
+                    >
+                      עדכון בוואטסאפ
+                    </a>
+                    <a
+                      href={mailtoLink(o.contact.email, `סופר-קאי · הזמנה ${o.orderNumber}`, customerOrderMessage(o))}
+                      className="rounded-full px-3 py-2 font-bold ring-1 ring-line hover:bg-brand-50"
+                    >
+                      עדכון במייל
+                    </a>
+                  </div>
                   <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-line pt-3">
                     {next && (
                       <button type="button" onClick={() => setStatus(o.id, next.to)} className={primaryButton}>

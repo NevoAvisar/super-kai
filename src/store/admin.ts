@@ -15,6 +15,8 @@ interface AdminState extends LocalAdminData {
   resetProduct: (id: string) => void;
   addProduct: (product: Omit<LocalProduct, "id">) => string;
   patchAddedProduct: (id: string, patch: Partial<Omit<LocalProduct, "id">>) => void;
+  /** Delete a product created in the admin screen (and any promotion aimed only at it). */
+  deleteAddedProduct: (id: string) => void;
   /** Create or replace a promotion (also how a built-in "seed-…" promotion is edited). */
   savePromotion: (promotion: LocalPromotion) => void;
 }
@@ -47,6 +49,13 @@ export const useAdminStore = create<AdminState>()(
         return id;
       },
       patchAddedProduct: (id, patch) => set((s) => ({ added: s.added.map((p) => (p.id === id ? { ...p, ...patch } : p)) })),
+      // QA: the admin could add products but never delete one. Seed (menu) products are
+      // "deleted" by hiding them, which keeps order history intact — same as OrderItem.productId → SetNull in the schema.
+      deleteAddedProduct: (id) =>
+        set((s) => ({
+          added: s.added.filter((p) => p.id !== id),
+          promotions: s.promotions.filter((p) => p.productId !== id),
+        })),
       savePromotion: (promotion) =>
         set((s) => ({
           promotions: s.promotions.some((p) => p.id === promotion.id)

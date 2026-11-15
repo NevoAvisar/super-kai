@@ -10,10 +10,12 @@ import { calculateCartTotals, lineTotal } from "@/lib/pricing";
 import { formatILS } from "@/lib/money";
 import { formatQuantity } from "@/lib/quantity";
 import type { CheckoutResult } from "@/lib/checkout";
+import { formatDeliveryDateHe } from "@/lib/delivery-date";
 import { demoPayment, EMPTY_CARD, validateCard, type CardDraft } from "@/lib/demo-payment";
 import type { PaymentMethod } from "@/lib/local-admin";
 import { useLocalAdminData } from "@/lib/use-live-catalog";
 import { useAuth } from "@/context/AuthContext";
+import { AccountGate } from "@/components/auth/AccountGate";
 import { useOrdersStore } from "@/store/admin";
 import { AddressFields, draftErrors, draftFromAddress, draftToInput, EMPTY_ADDRESS, type AddressDraft } from "@/components/AddressFields";
 import { CartThumb } from "@/components/CartThumb";
@@ -52,7 +54,22 @@ function Field({ id, label, value, onChange, error, type = "text", autoComplete,
   );
 }
 
+/**
+ * QA fix — checkout auth gate. Browsing and the cart stay open to guests; only
+ * placing the order needs an account. The cart lives in localStorage, so it is
+ * untouched by the login round-trip (/login?next=/checkout brings them back).
+ * HE: תיקון QA – הקופה דורשת התחברות (הגלישה והסל נשארים פתוחים). הסל שמור
+ * ב-localStorage ולכן לא הולך לאיבוד, ואחרי ההתחברות חוזרים ישר לקופה.
+ */
 export default function CheckoutPage() {
+  return (
+    <AccountGate title="כמעט סיימנו – רק להתחבר" text="הסל שלך שמור. התחברו או הירשמו, ונחזיר אתכם ישר לקופה.">
+      {() => <Checkout />}
+    </AccountGate>
+  );
+}
+
+function Checkout() {
   const hydrated = useHydrated();
   const delivery = useDeliveryDate();
   const { items, fulfillment, setFulfillment, clear } = useCart();
@@ -68,6 +85,13 @@ export default function CheckoutPage() {
   const [card, setCard] = useState<CardDraft>(EMPTY_CARD);
   const [pay, setPay] = useState<{ phase: "validating" | "processing" | "success"; method: PaymentMethod; totalLabel: string } | null>(null);
   const router = useRouter();
+  // QA fix: after a "date went stale" rejection, use the date the SERVER computed.
+  // Before, a customer whose device clock was off (or who resubmitted within the
+  // 30 s refresh window) was rejected again and again.
+  // HE: אחרי דחייה בגלל תאריך ישן – משתמשים בתאריך שהשרת חישב, ולא בשעון המכשיר.
+  const [serverDate, setServerDate] = useState<string | null>(null);
+  const deliveryDate = serverDate ?? delivery?.date ?? null;
+  const deliveryLabel = deliveryDate ? formatDeliveryDateHe(deliveryDate) : null;
   const set = (k: keyof Fields) => (v: string) => setF((s) => ({ ...s, [k]: v }));
 
   // A signed-in customer doesn't retype what the account already knows.
@@ -100,7 +124,7 @@ export default function CheckoutPage() {
 
   /** DEMO payment: validate the order on the server, "process" for a moment, save it as paid, go to the confirmation. */
   async function payWith(method: PaymentMethod) {
-    if (!delivery || pay) return;
+    if (!deliveryDate || pay) return;
     const isDelivery = fulfillment === "DELIVERY";
     // The card never leaves the browser; wallets have no fields to check.
     const cardErrors = method === "CARD" ? validateCard(card) : {};
@@ -111,7 +135,7 @@ export default function CheckoutPage() {
         {
           items: lines.map((l) => ({ productId: l.productId, quantity: l.quantity })),
           fulfillment,
-          deliveryDate: delivery.date,
+          deliveryDate,
           contact,
           address: isDelivery ? { ...draftToInput(address), apartment: f.apartment, notes: f.notes } : undefined,
         },
@@ -120,6 +144,7 @@ export default function CheckoutPage() {
       if (!res.ok || Object.keys(cardErrors).length) {
         // The form's own wording wins for a city or street that was typed but not picked from the list.
         setErrors({ ...(!res.ok && res.errors), ...(isDelivery && draftErrors(address)), ...cardErrors });
+        if (!res.ok && res.errors.deliveryDate) setServerDate(res.deliveryDate);
         setPay(null);
         showFirstError();
         return;
@@ -163,7 +188,8 @@ export default function CheckoutPage() {
   }
 
   return (
-    <form onSubmit={submit} noValidate className="mx-auto grid max-w-6xl gap-8 px-4 py-10 lg:grid-cols-[1fr_400px]">
+    // QA fix (mobile): minmax(0,1fr) so long, truncated item names can't widen the grid past the screen.
+    <form onSubmit={submit} noValidate className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-8 px-4 py-10 lg:grid-cols-[minmax(0,1fr)_400px]">
       {pay && pay.phase !== "validating" && <PaymentOverlay phase={pay.phase} method={pay.method} totalLabel={pay.totalLabel} />}
       <div className="space-y-8">
         <div>
@@ -174,7 +200,7 @@ export default function CheckoutPage() {
         <section className="space-y-4 rounded-3xl bg-paper p-6 ring-1 ring-line">
           <h2 className="font-display text-2xl font-bold">1. איך תרצו לקבל?</h2>
           <FulfillmentToggle value={fulfillment} onChange={setFulfillment} />
-          <DeliveryDateNote label={delivery?.label ?? null} pastCutoff={delivery?.pastCutoff} fulfillment={fulfillment} />
+          <DeliveryDateNote label={deliveryLabel} pastCutoff={delivery?.pastCutoff} fulfillment={fulfillment} />
           {errors.deliveryDate && (
             <p className="rounded-xl bg-brand-50 p-3 text-sm text-brand-700" role="alert">{errors.deliveryDate}</p>
           )}
@@ -245,7 +271,7 @@ export default function CheckoutPage() {
             setErrors((prev) => without(prev, CARD_KEYS));
           }}
           errors={errors}
-          disabled={!delivery || !totals.canCheckout}
+          disabled={!deliveryDate || !totals.canCheckout}
           busy={!!pay}
           onWallet={(method) => void payWith(method)}
         />

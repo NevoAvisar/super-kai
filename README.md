@@ -113,7 +113,8 @@ src/
 - **Orders snapshot** prices, names, address and fees, so editing a product never rewrites history or invoices.
 - **Business rules are data**: the `StoreSettings` row lets Kai change fee, threshold, cut-off and closed days from the admin dashboard; the pure functions take `rules` as a parameter.
 - **Delivery date is computed, not chosen.** The server re-validates it at checkout (`isValidDeliveryDate`) so a tab left open past 14:30 can't place an order for a date that's no longer valid.
-- **Guest cart**: browsing and adding to cart need no account. On login, the guest cart (`Cart.guestToken`) merges into the user's cart.
+- **Guest cart, gated checkout**: browsing and adding to cart need no account; `/checkout` asks for a login (`/login?next=/checkout`) and the cart survives the round-trip. On login, the guest cart (`Cart.guestToken`) merges into the user's cart.
+- **QA audit**: see `docs/qa-report.md` (Hebrew + English) for test coverage, edge cases, mobile notes and open items.
 
 ## Admin screens without a database (local mock)
 `/admin` works today with **no backend**, so the whole site can be tried end to end. Sign in with the mock admin account defined in `src/context/AuthContext.tsx`.

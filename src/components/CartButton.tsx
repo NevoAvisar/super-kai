@@ -15,7 +15,7 @@ export function CartButton() {
   return (
     <Link
       href="/cart"
-      className="flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-bold text-paper transition hover:bg-brand-500"
+      className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-ink px-3 py-2 text-sm font-bold text-paper transition hover:bg-brand-500 sm:gap-2 sm:px-4"
     >
       <span aria-hidden>🛒</span>
       <span>{hydrated ? formatILS(subtotalAgorot) : formatILS(0)}</span>

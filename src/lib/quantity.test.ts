@@ -23,3 +23,20 @@ describe("0.25 kg steps", () => {
     expect(isValidQuantity(1.5, "UNIT")).toBe(false);
   });
 });
+
+describe("QA: per-line cap", () => {
+  it("stops the KG stepper at 30 kg and the UNIT stepper at 50", () => {
+    expect(incrementQuantity(30, "KG")).toBe(30);
+    expect(incrementQuantity(29.75, "KG")).toBe(30);
+    expect(incrementQuantity(50, "UNIT")).toBe(50);
+  });
+  it("walks 0.25 → 1.00 in exact quarter-kilo steps and back to 0 (removal)", () => {
+    let q = 0;
+    const up: number[] = [];
+    for (let i = 0; i < 4; i++) up.push((q = incrementQuantity(q, "KG")));
+    expect(up).toEqual([0.25, 0.5, 0.75, 1]);
+    const down: number[] = [];
+    for (let i = 0; i < 4; i++) down.push((q = decrementQuantity(q, "KG")));
+    expect(down).toEqual([0.75, 0.5, 0.25, 0]);
+  });
+});
