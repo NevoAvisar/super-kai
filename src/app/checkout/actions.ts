@@ -2,6 +2,7 @@
 
 import { getProducts } from "@/lib/catalog";
 import { validateCheckout, type CheckoutInput, type CheckoutResult } from "@/lib/checkout";
+import { getAddressDataset } from "@/lib/il-address/service";
 import { applyLocalAdmin, type LocalAdminData } from "@/lib/local-admin";
 
 /**
@@ -16,5 +17,17 @@ import { applyLocalAdmin, type LocalAdminData } from "@/lib/local-admin";
 export async function prepareOrder(input: CheckoutInput, local?: LocalAdminData): Promise<CheckoutResult> {
   const base = await getProducts();
   const catalog = local && process.env.CATALOG_SOURCE !== "db" ? applyLocalAdmin(base, local) : base;
-  return validateCheckout(input, catalog);
+  let addresses;
+  try {
+    addresses = await getAddressDataset();
+  } catch {
+    // Fail closed: a delivery address that cannot be verified is not accepted.
+    addresses = { fetchedAt: "", cities: [], streets: {} };
+  }
+  const result = validateCheckout(input, catalog, addresses);
+  if (!result.ok && !addresses.cities.length && input.fulfillment === "DELIVERY") {
+    result.errors.city = "לא ניתן לאמת את הכתובת כרגע. נסו שוב בעוד רגע.";
+    delete result.errors.street;
+  }
+  return result;
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { formatAddress } from "@/lib/il-address/validate";
 import Link from "next/link";
 import { AccountGate } from "@/components/auth/AccountGate";
 import { OrderLines, OrderStatusBadge } from "@/components/OrderCard";
@@ -42,7 +43,7 @@ function MyOrders({ user }: { user: AuthUser }) {
               </div>
               <p className="rounded-2xl bg-leaf-50 px-3 py-2 text-sm font-medium text-leaf-700">
                 📅 {o.fulfillment === "DELIVERY" ? "אספקה" : "איסוף עצמי"} ב{formatDeliveryDateHe(o.deliveryDate)}
-                {o.address && ` · ${o.address.street} ${o.address.houseNumber}, ${o.address.city}`}
+                {o.address && ` · ${formatAddress(o.address)}`}
               </p>
               <OrderLines order={o} />
             </li>

@@ -14,6 +14,7 @@ import {
 import { formatDeliveryDateHe, type DateOnly } from "@/lib/delivery-date";
 import { groupOrdersByDeliveryDate, ORDER_STATUSES, ORDER_STATUS_LABEL, type LocalOrder, type OrderStatus } from "@/lib/local-admin";
 import { formatILS } from "@/lib/money";
+import { formatAddress } from "@/lib/il-address/validate";
 import { formatQuantity } from "@/lib/quantity";
 import { useHydrated } from "@/lib/use-hydrated";
 import { useOrdersStore } from "@/store/admin";
@@ -35,7 +36,7 @@ const NEXT_STEP: Partial<Record<OrderStatus, { to: OrderStatus; label: string }>
 
 const addressText = (o: LocalOrder) =>
   o.address
-    ? `${o.address.street} ${o.address.houseNumber}${o.address.apartment ? `, דירה ${o.address.apartment}` : ""}, ${o.address.city}`
+    ? formatAddress(o.address)
     : "איסוף עצמי מהמטבח";
 
 /** Kitchen totals per dish, delivery zones for the courier, and the full order cards. */

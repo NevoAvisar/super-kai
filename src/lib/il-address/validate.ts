@@ -106,8 +106,11 @@ export function validateAddress(input: AddressInput, dataset: AddressDataset): A
   };
 }
 
-/** "הרצל 12, כניסה ב, קומה 3, חולון" — or "12, אפיקים" where there are no street names. */
-export function formatAddress(a: CustomerAddress): string {
+/**
+ * "הרצל 12, כניסה ב, קומה 3, דירה 5, חולון" — or "בית 12, אפיקים" where there are
+ * no street names. Also accepts older order addresses that carry no codes.
+ */
+export function formatAddress(a: Pick<CustomerAddress, "city" | "street" | "houseNumber" | "floor" | "entrance"> & { streetCode?: number; apartment?: string }): string {
   const first = a.streetCode === LOCALITY_STREET_CODE ? `בית ${a.houseNumber}` : `${a.street} ${a.houseNumber}`;
-  return [first, a.entrance && `כניסה ${a.entrance}`, a.floor && `קומה ${a.floor}`, a.city].filter(Boolean).join(", ");
+  return [first, a.entrance && `כניסה ${a.entrance}`, a.floor && `קומה ${a.floor}`, a.apartment && `דירה ${a.apartment}`, a.city].filter(Boolean).join(", ");
 }

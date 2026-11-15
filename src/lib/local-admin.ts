@@ -103,7 +103,8 @@ export interface LocalOrder {
   deliveryDate: DateOnly;
   createdAt: string;
   contact: { name: string; phone: string; email: string };
-  address: { city: string; street: string; houseNumber: string; apartment?: string; notes?: string } | null;
+  /** Orders placed since the verified address fields carry the official codes; older ones don't. */
+  address: { city: string; street: string; houseNumber: string; cityCode?: number; streetCode?: number; floor?: string; entrance?: string; apartment?: string; notes?: string } | null;
   lines: { productId: string; name: string; saleUnit: SaleUnit; quantity: number; unitPriceAgorot: number; lineTotalAgorot: number }[];
   totals: Pick<CartTotals, "subtotalAgorot" | "savingsAgorot" | "deliveryFeeAgorot" | "totalAgorot">;
   /** Generated sample order (lib/demo-orders.ts), removable from the overview screen. */

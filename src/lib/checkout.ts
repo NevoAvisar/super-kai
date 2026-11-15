@@ -1,3 +1,5 @@
+import type { AddressDataset } from "./il-address/dataset";
+import { validateAddress, type AddressInput, type CustomerAddress } from "./il-address/validate";
 import { DEFAULT_RULES, type StoreRules } from "./config";
 import { getDeliveryDate, isValidDeliveryDate, type DateOnly } from "./delivery-date";
 import { calculateCartTotals, lineTotal, type CartTotals, type FulfillmentType } from "./pricing";
@@ -6,14 +8,17 @@ import { isValidQuantity, type SaleUnit } from "./quantity";
 /**
  * Server-side order validation. The browser cart is never trusted: prices,
  * quantity steps, the delivery fee and the delivery date are all recomputed
- * here from the catalog and the store rules.
+ * here from the catalog and the store rules, and a delivery address must be an
+ * official city + a street of that city (lib/il-address).
  */
+export type DeliveryAddress = CustomerAddress & { apartment?: string; notes?: string };
+
 export interface CheckoutInput {
   items: { productId: string; quantity: number }[];
   fulfillment: FulfillmentType;
   deliveryDate: DateOnly;
   contact: { name: string; phone: string; email: string };
-  address?: { city: string; street: string; houseNumber: string; apartment?: string; notes?: string };
+  address?: AddressInput & { apartment?: string; notes?: string };
 }
 
 export interface PricedProduct {
@@ -30,6 +35,8 @@ export interface OrderDraft {
   totals: CartTotals;
   fulfillment: FulfillmentType;
   deliveryDate: DateOnly;
+  /** The verified address with its official names and codes; null for pickup. */
+  address: DeliveryAddress | null;
 }
 
 export type CheckoutResult =
@@ -42,6 +49,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export function validateCheckout(
   input: CheckoutInput,
   catalog: PricedProduct[],
+  addresses: AddressDataset,
   now: Date = new Date(),
   rules: StoreRules = DEFAULT_RULES,
 ): CheckoutResult {
@@ -79,11 +87,15 @@ export function validateCheckout(
   if (input.contact.name.trim().length < 2) errors.name = "נא למלא שם מלא.";
   if (!PHONE.test(input.contact.phone.replace(/\s/g, ""))) errors.phone = "מספר טלפון לא תקין.";
   if (!EMAIL.test(input.contact.email.trim())) errors.email = "כתובת מייל לא תקינה.";
+  let address: DeliveryAddress | null = null;
   if (input.fulfillment === "DELIVERY") {
-    const a = input.address;
-    if (!a?.city.trim()) errors.city = "נא למלא עיר.";
-    if (!a?.street.trim()) errors.street = "נא למלא רחוב.";
-    if (!a?.houseNumber.trim()) errors.houseNumber = "נא למלא מספר בית.";
+    const checked = validateAddress(input.address ?? {}, addresses);
+    if (!checked.ok) Object.assign(errors, checked.errors);
+    else {
+      const apartment = String(input.address?.apartment ?? "").trim().slice(0, 10);
+      const notes = String(input.address?.notes ?? "").trim().slice(0, 200);
+      address = { ...checked.address, ...(apartment && { apartment }), ...(notes && { notes }) };
+    }
   }
 
   const totals = calculateCartTotals(
@@ -94,5 +106,5 @@ export function validateCheckout(
   if (!totals.meetsMinimumOrder) errors.items = "ההזמנה מתחת לסכום המינימום.";
 
   if (Object.keys(errors).length) return { ok: false, errors, deliveryDate: expected };
-  return { ok: true, order: { lines, totals, fulfillment: input.fulfillment, deliveryDate: expected } };
+  return { ok: true, order: { lines, totals, fulfillment: input.fulfillment, deliveryDate: expected, address } };
 }

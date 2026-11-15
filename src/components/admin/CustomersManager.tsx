@@ -11,7 +11,7 @@ import { formatAddress, type AddressErrors, type CustomerAddress } from "@/lib/i
 import { buildCustomers, type AdminCustomer } from "@/lib/local-admin";
 import { formatILS } from "@/lib/money";
 import { useOrdersStore } from "@/store/admin";
-import { AddressFields, draftErrors, draftFromAddress, draftToInput, EMPTY_ADDRESS, type AddressDraft } from "./AddressFields";
+import { AddressFields, draftErrors, draftFromAddress, draftToInput, EMPTY_ADDRESS, type AddressDraft } from "@/components/AddressFields";
 import { inputClass, Labeled, primaryButton, quietButton } from "./AdminShell";
 import { SERIES } from "./charts";
 

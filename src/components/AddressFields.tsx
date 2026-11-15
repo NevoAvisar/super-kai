@@ -4,13 +4,13 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, Loader2 } from "lucide-react";
 import { LOCALITY_STREET_CODE, searchKey, type City, type Street } from "@/lib/il-address/dataset";
 import { detailErrors, type AddressErrors, type AddressInput, type CustomerAddress } from "@/lib/il-address/validate";
-import { inputClass } from "./AdminShell";
-
 /**
- * The structured Israeli address fields for the admin: city and street are
+ * The structured Israeli address fields (admin customers and checkout): city and street are
  * picked from the official lists (never free text), street unlocks only after
- * a city is chosen. The server re-checks everything (customers/actions.ts).
+ * a city is chosen. The server re-checks everything (validateAddress).
  */
+
+const inputClass = "w-full rounded-xl bg-paper px-3.5 py-2.5 text-sm ring-1 ring-line outline-none focus:ring-2 focus:ring-brand-500";
 
 type Option = { code: number; name: string };
 
@@ -94,7 +94,7 @@ function loadStreets(cityCode: number) {
   return request;
 }
 
-export function AddressFields({ value, onChange, errors }: { value: AddressDraft; onChange: (next: AddressDraft) => void; errors: AddressErrors }) {
+export function AddressFields({ value, onChange, errors, hideLegend }: { value: AddressDraft; onChange: (next: AddressDraft) => void; errors: AddressErrors; /** When the surrounding section already has a visible heading. */ hideLegend?: boolean }) {
   const [cities, setCities] = useState<City[] | null>(null);
   const [citiesFailed, setCitiesFailed] = useState(false);
   /** Streets of the chosen city; null while loading or with no city. */
@@ -148,7 +148,7 @@ export function AddressFields({ value, onChange, errors }: { value: AddressDraft
 
   return (
     <fieldset className="@container space-y-4">
-      <legend className="font-display text-lg font-bold">כתובת</legend>
+      <legend className={hideLegend ? "sr-only" : "font-display text-lg font-bold"}>כתובת</legend>
       {/* By the form's own width: one column inside the narrow customer drawer. */}
       <div className="grid gap-4 @md:grid-cols-2">
         <Combobox

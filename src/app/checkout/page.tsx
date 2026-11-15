@@ -15,12 +15,14 @@ import type { LocalOrder } from "@/lib/local-admin";
 import { useLocalAdminData } from "@/lib/use-live-catalog";
 import { useAuth } from "@/context/AuthContext";
 import { useOrdersStore } from "@/store/admin";
+import { AddressFields, draftErrors, draftFromAddress, draftToInput, EMPTY_ADDRESS, type AddressDraft } from "@/components/AddressFields";
 import { CartThumb } from "@/components/CartThumb";
 import { DeliveryDateNote, FulfillmentToggle, OrderSummary } from "@/components/OrderSummary";
 import { prepareOrder } from "./actions";
 
-type Fields = { name: string; phone: string; email: string; city: string; street: string; houseNumber: string; apartment: string; notes: string };
-const EMPTY: Fields = { name: "", phone: "", email: "", city: "", street: "", houseNumber: "", apartment: "", notes: "" };
+type Fields = { name: string; phone: string; email: string; apartment: string; notes: string };
+const EMPTY: Fields = { name: "", phone: "", email: "", apartment: "", notes: "" };
+const ADDRESS_KEYS = ["city", "street", "houseNumber", "floor", "entrance"] as const;
 
 function Field({ id, label, value, onChange, error, type = "text", autoComplete, className = "" }: {
   id: keyof Fields; label: string; value: string; onChange: (v: string) => void; error?: string; type?: string; autoComplete?: string; className?: string;
@@ -53,6 +55,7 @@ export default function CheckoutPage() {
   const totals = calculateCartTotals(lines, fulfillment);
 
   const [f, setF] = useState<Fields>(EMPTY);
+  const [address, setAddress] = useState<AddressDraft>(EMPTY_ADDRESS);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirmed, setConfirmed] = useState<{ order: LocalOrder; totals: CartTotals } | null>(null);
   const [pending, startTransition] = useTransition();
@@ -60,7 +63,9 @@ export default function CheckoutPage() {
 
   // A signed-in customer doesn't retype what the account already knows.
   useEffect(() => {
-    if (user) setF((s) => ({ ...s, name: s.name || user.name, email: s.email || user.email, phone: s.phone || (user.phone ?? "") }));
+    if (!user) return;
+    setF((s) => ({ ...s, name: s.name || user.name, email: s.email || user.email, phone: s.phone || (user.phone ?? "") }));
+    if (user.address) setAddress((a) => (a === EMPTY_ADDRESS ? draftFromAddress(user.address) : a));
   }, [user]);
 
   if (!hydrated) return <div className="mx-auto max-w-5xl px-4 py-16 text-center text-muted">טוען…</div>;
@@ -81,9 +86,15 @@ export default function CheckoutPage() {
     if (!delivery) return;
     startTransition(async () => {
       const contact = { name: f.name.trim(), phone: f.phone.trim(), email: f.email.trim() };
-      const address = fulfillment === "DELIVERY" ? { city: f.city, street: f.street, houseNumber: f.houseNumber, apartment: f.apartment, notes: f.notes } : undefined;
+      const isDelivery = fulfillment === "DELIVERY";
       const res: CheckoutResult = await prepareOrder(
-        { items: lines.map((l) => ({ productId: l.productId, quantity: l.quantity })), fulfillment, deliveryDate: delivery.date, contact, address },
+        {
+          items: lines.map((l) => ({ productId: l.productId, quantity: l.quantity })),
+          fulfillment,
+          deliveryDate: delivery.date,
+          contact,
+          address: isDelivery ? { ...draftToInput(address), apartment: f.apartment, notes: f.notes } : undefined,
+        },
         localAdmin,
       );
       if (res.ok) {
@@ -94,7 +105,8 @@ export default function CheckoutPage() {
           fulfillment: res.order.fulfillment,
           deliveryDate: res.order.deliveryDate,
           contact,
-          address: address ?? null,
+          // Only the address the server verified (official names and codes) is kept.
+          address: res.order.address,
           lines: res.order.lines,
           totals: {
             subtotalAgorot: totals.subtotalAgorot,
@@ -108,7 +120,8 @@ export default function CheckoutPage() {
         clear();
         window.scrollTo({ top: 0 });
       } else {
-        setErrors(res.errors);
+        // The form's own wording wins for a city or street that was typed but not picked from the list.
+        setErrors({ ...res.errors, ...(isDelivery && draftErrors(address)) });
       }
     });
   }
@@ -186,13 +199,20 @@ export default function CheckoutPage() {
         {fulfillment === "DELIVERY" && (
           <section className="space-y-4 rounded-3xl bg-paper p-6 ring-1 ring-line">
             <h2 className="font-display text-2xl font-bold">3. כתובת למשלוח</h2>
+            <AddressFields
+              hideLegend
+              value={address}
+              onChange={(next) => {
+                setAddress(next);
+                setErrors((prev) => Object.fromEntries(Object.entries(prev).filter(([k]) => !(ADDRESS_KEYS as readonly string[]).includes(k))));
+              }}
+              errors={errors}
+            />
             <div className="grid gap-4 sm:grid-cols-4">
-              <Field id="city" label="עיר" value={f.city} onChange={set("city")} error={errors.city} autoComplete="address-level2" className="sm:col-span-2" />
-              <Field id="street" label="רחוב" value={f.street} onChange={set("street")} error={errors.street} autoComplete="address-line1" className="sm:col-span-2" />
-              <Field id="houseNumber" label="מספר בית" value={f.houseNumber} onChange={set("houseNumber")} error={errors.houseNumber} />
-              <Field id="apartment" label="דירה" value={f.apartment} onChange={set("apartment")} autoComplete="address-line2" />
-              <Field id="notes" label="הערות לשליח" value={f.notes} onChange={set("notes")} className="sm:col-span-2" />
+              <Field id="apartment" label="דירה (לא חובה)" value={f.apartment} onChange={set("apartment")} autoComplete="address-line2" />
+              <Field id="notes" label="הערות לשליח (לא חובה)" value={f.notes} onChange={set("notes")} className="sm:col-span-3" />
             </div>
+            <p className="text-xs text-muted">עיר ורחוב נבחרים מהרשימה הרשמית של יישובי ורחובות ישראל, כדי שהשליח יגיע בדיוק אליכם.</p>
           </section>
         )}
       </div>
