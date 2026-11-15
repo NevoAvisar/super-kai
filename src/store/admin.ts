@@ -85,8 +85,8 @@ export const useOrdersStore = create<OrdersState>()(
           ...draft,
           id: newId("order"),
           orderNumber,
-          // No payment step in the mock: the order waits for the admin's approval.
-          status: "PENDING_PAYMENT",
+          // Paid in the demo payment step → straight to the kitchen; otherwise it waits for approval.
+          status: draft.payment ? "CONFIRMED" : "PENDING_PAYMENT",
           createdAt: new Date().toISOString(),
         };
         set((s) => ({ orders: [...s.orders, order], nextOrderNumber: orderNumber + 1 }));

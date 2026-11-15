@@ -18,7 +18,7 @@ import { formatAddress } from "@/lib/il-address/validate";
 import { formatQuantity } from "@/lib/quantity";
 import { useHydrated } from "@/lib/use-hydrated";
 import { useOrdersStore } from "@/store/admin";
-import { OrderLines, OrderStatusBadge } from "@/components/OrderCard";
+import { OrderLines, OrderStatusBadge, PaymentBadge } from "@/components/OrderCard";
 import { primaryButton, quietButton } from "./AdminShell";
 import { Segmented } from "./charts";
 
@@ -262,6 +262,7 @@ function OrdersView({ orders, today }: { orders: LocalOrder[]; today: DateOnly }
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-display text-xl font-bold">הזמנה {o.orderNumber}</h3>
                     <OrderStatusBadge status={o.status} />
+                    <PaymentBadge payment={o.payment} />
                     {o.isDemo && <span className="rounded-full bg-cream px-2 py-0.5 text-xs text-muted">לדוגמה</span>}
                     <span className="text-xs text-muted sm:ms-auto">{o.fulfillment === "DELIVERY" ? "🚚 משלוח" : "🏠 איסוף עצמי"}</span>
                   </div>

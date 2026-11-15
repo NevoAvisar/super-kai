@@ -137,7 +137,7 @@ src/
 - `GET /api/address/cities` and `GET /api/address/streets?city=<code>` feed the dropdowns in `src/components/AddressFields.tsx`.
 - The Prisma `Address` model carries `cityCode`, `streetCode` and `entrance`. In the mock the verified address is saved on the customer in `localStorage`; with the database, the same action writes the `Address` row.
 
-**Order flow in the mock.** There is no payment step, so a new order starts as "ממתינה לאישור" (the schema's `PENDING_PAYMENT`) until the admin approves it.
+**Order flow in the mock (demo payment).** No payment provider is connected. The checkout's payment step (`src/components/checkout/PaymentSection.tsx`, `src/lib/demo-payment.ts`) simulates Apple Pay, Google Pay and a credit card: it shows a short "מעבד תשלום..." sheet, saves the order with `payment.status = "PAID_DEMO"` ("שולם (מצב הדגמה)") and status `CONFIRMED`, and opens `/checkout/confirmation/[id]`. Nothing is charged, card fields are checked in the browser only, and just the last four digits are stored. Orders placed before this step have no `payment` and stay "ממתינה לאישור" (`PENDING_PAYMENT`) until the admin approves them. A real provider replaces `demoPayment` and the pause.
 
 **How the layering works** (`src/lib/local-admin.ts`, `src/store/admin.ts`, `src/lib/use-live-catalog.ts`):
 - The server still renders the seed catalog. Admin edits are stored in `localStorage` as *overrides* per product id (only the changed fields), *added* products, and *promotions*.

@@ -1,4 +1,4 @@
-import { ORDER_STATUS_LABEL, type LocalOrder, type OrderStatus } from "@/lib/local-admin";
+import { ORDER_STATUS_LABEL, PAID_DEMO_LABEL, paymentText, type LocalOrder, type OrderPayment, type OrderStatus } from "@/lib/local-admin";
 import { formatILS } from "@/lib/money";
 import { formatQuantity } from "@/lib/quantity";
 
@@ -14,6 +14,16 @@ const STATUS_CLASS: Record<OrderStatus, string> = {
 
 export function OrderStatusBadge({ status }: { status: OrderStatus }) {
   return <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${STATUS_CLASS[status]}`}>{ORDER_STATUS_LABEL[status]}</span>;
+}
+
+/** "שולם (מצב הדגמה)" — shown wherever an order paid in the demo checkout is listed. */
+export function PaymentBadge({ payment }: { payment?: OrderPayment }) {
+  if (!payment) return null;
+  return (
+    <span title={paymentText(payment)} className="rounded-full bg-leaf-50 px-2.5 py-0.5 text-xs font-bold text-leaf-700 ring-1 ring-leaf-600/20">
+      ✓ {PAID_DEMO_LABEL}
+    </span>
+  );
 }
 
 /** The order's lines and totals, shared by the admin screen and the customer's order history. */

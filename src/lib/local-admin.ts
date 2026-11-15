@@ -107,8 +107,34 @@ export interface LocalOrder {
   address: { city: string; street: string; houseNumber: string; cityCode?: number; streetCode?: number; floor?: string; entrance?: string; apartment?: string; notes?: string } | null;
   lines: { productId: string; name: string; saleUnit: SaleUnit; quantity: number; unitPriceAgorot: number; lineTotalAgorot: number }[];
   totals: Pick<CartTotals, "subtotalAgorot" | "savingsAgorot" | "deliveryFeeAgorot" | "totalAgorot">;
+  /** Set by the checkout's demo payment step (lib/demo-payment.ts); older orders have none. */
+  payment?: OrderPayment;
   /** Generated sample order (lib/demo-orders.ts), removable from the overview screen. */
   isDemo?: boolean;
+}
+
+export type PaymentMethod = "APPLE_PAY" | "GOOGLE_PAY" | "CARD";
+
+/** Mirrors the Prisma `Order` payment columns. No real charge exists in the mock, hence the only status. */
+export interface OrderPayment {
+  method: PaymentMethod;
+  status: "PAID_DEMO";
+  reference: string;
+  paidAt: string;
+  /** CARD only. The full card number is never stored. */
+  last4?: string;
+}
+
+export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
+  APPLE_PAY: "Apple Pay",
+  GOOGLE_PAY: "Google Pay",
+  CARD: "כרטיס אשראי",
+};
+
+export const PAID_DEMO_LABEL = "שולם (מצב הדגמה)";
+
+export function paymentText(p: OrderPayment): string {
+  return p.method === "CARD" && p.last4 ? `${PAYMENT_METHOD_LABEL.CARD} המסתיים ב-${p.last4}` : PAYMENT_METHOD_LABEL[p.method];
 }
 
 export const STOCK_LABEL: Record<StockStatus, string> = {
@@ -118,7 +144,7 @@ export const STOCK_LABEL: Record<StockStatus, string> = {
 };
 
 export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
-  // No payment step in the mock: a new order waits for the admin to approve it.
+  // Orders placed before the demo payment step waited for the admin's approval.
   PENDING_PAYMENT: "ממתינה לאישור",
   CONFIRMED: "התקבלה",
   IN_PREPARATION: "בהכנה",

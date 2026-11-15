@@ -3,7 +3,7 @@
 import { formatAddress } from "@/lib/il-address/validate";
 import Link from "next/link";
 import { AccountGate } from "@/components/auth/AccountGate";
-import { OrderLines, OrderStatusBadge } from "@/components/OrderCard";
+import { OrderLines, OrderStatusBadge, PaymentBadge } from "@/components/OrderCard";
 import type { AuthUser } from "@/context/AuthContext";
 import { formatDeliveryDateHe } from "@/lib/delivery-date";
 import { ordersForUser } from "@/lib/local-admin";
@@ -39,6 +39,7 @@ function MyOrders({ user }: { user: AuthUser }) {
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="font-display text-xl font-bold">הזמנה {o.orderNumber}</h2>
                 <OrderStatusBadge status={o.status} />
+                <PaymentBadge payment={o.payment} />
                 <span className="text-xs text-muted sm:ms-auto">הוזמן ב-{placedAt(o.createdAt)}</span>
               </div>
               <p className="rounded-2xl bg-leaf-50 px-3 py-2 text-sm font-medium text-leaf-700">

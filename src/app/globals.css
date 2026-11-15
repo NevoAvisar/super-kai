@@ -39,3 +39,15 @@ body {
 h1, h2, h3 {
   text-wrap: balance;
 }
+
+/* Checkout: the payment sheet and the confirmation tick scale in. */
+@keyframes pay-pop {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+.pay-pop {
+  animation: pay-pop 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pay-pop { animation: none; }
+}
