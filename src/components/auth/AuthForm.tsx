@@ -56,6 +56,11 @@ export function AuthForm({ logo }: { logo?: ReactNode }) {
   // QA fix: honour "?next=" (e.g. /checkout) so the guest cart flow resumes where it left off.
   // Before, every login landed on "/" and the customer had to find the cart again.
   // HE: תיקון QA – חזרה לעמוד שממנו הגיעו (למשל הקופה) במקום לדף הבית. הסל נשמר ב-localStorage.
+  // QA (routing): /signup and /register redirect to /login?mode=signup, which opens straight on the sign-up form.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("mode") === "signup") setMode("signup");
+  }, []);
+
   useEffect(() => {
     if (!ready || !user) return;
     const next = new URLSearchParams(window.location.search).get("next");

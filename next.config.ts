@@ -9,6 +9,22 @@ const nextConfig: NextConfig = {
     remotePatterns: [{ protocol: "https", hostname: "images.unsplash.com" }],
   },
   poweredByHeader: false,
+  // QA (routing): URLs people (and old links) commonly try. They used to 404; now they land on the right screen.
+  // HE: כתובות נפוצות שהחזירו 404 – מפנות עכשיו למסך הנכון.
+  async redirects() {
+    return [
+      { source: "/signup", destination: "/login?mode=signup", permanent: true },
+      { source: "/register", destination: "/login?mode=signup", permanent: true },
+      { source: "/signin", destination: "/login", permanent: true },
+      { source: "/sign-in", destination: "/login", permanent: true },
+      { source: "/account", destination: "/orders", permanent: false },
+      { source: "/my-orders", destination: "/orders", permanent: true },
+      { source: "/menu", destination: "/catalog", permanent: true },
+      { source: "/shop", destination: "/catalog", permanent: true },
+      { source: "/products", destination: "/catalog", permanent: true },
+      { source: "/dashboard", destination: "/admin", permanent: false },
+    ];
+  },
   // QA (security): baseline headers. No CSP yet — GSAP inline styles and the Unsplash CDN need a tuned policy.
   // HE: כותרות אבטחה בסיסיות – מניעת הטמעה ב-iframe (clickjacking), sniffing ודליפת referrer.
   async headers() {

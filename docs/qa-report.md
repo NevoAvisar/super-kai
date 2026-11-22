@@ -1,23 +1,42 @@
 # דו״ח QA · סופר-קאי — QA Report · Super-Kai
 
-**תאריך / Date:** 2026-11-15 · **ענף / Branch:** `claude/super-kai-qa-audit-50vb64`
+**תאריך / Date:** 2026-11-15, סבב סופי / final pass 2026-11-22 · **ענף / Branch:** `claude/super-kai-qa-audit-50vb64`
 **היקף / Scope:** צד לקוח, צד שרת, דשבורד אדמין, מובייל · Client, server, admin dashboard, mobile
 
 ---
 
 ## 0. תקציר מנהלים · Executive summary
 
-**עברית.** הבסיס של המערכת טוב: כל לוגיקת הכסף, הכמויות ותאריכי האספקה נמצאת בפונקציות טהורות ומכוסה בבדיקות. הסכומים נשמרים באגורות שלמות והכמויות מחושבות בצעדים שלמים, כך שאין סטיות של נקודה צפה. מצאנו ותיקנו **14 תקלות**. החמורות שבהן: לקופה לא היה שער התחברות כלל, וההתחברות לא החזירה את הלקוח לעמוד שממנו הגיע. במובייל, עמוד הסל נגלל לרוחב (507px בטלפון של 360px), כל האתר נגלל לרוחב ב-320px, ולא היה תפריט ניווט. פעולת השרת של הקופה קרסה על קלט שבור. לא היה דף 404 בעברית. אחרי התיקונים יש 237 בדיקות יחידה ו-12 בדיקות קצה-לקצה בדפדפן, וכולן עוברות.
+**עברית.** הבסיס של המערכת טוב: כל לוגיקת הכסף, הכמויות ותאריכי האספקה נמצאת בפונקציות טהורות ומכוסה בבדיקות. הסכומים נשמרים באגורות שלמות והכמויות מחושבות בצעדים שלמים, כך שאין סטיות של נקודה צפה. מצאנו ותיקנו **14 תקלות**. החמורות שבהן: לקופה לא היה שער התחברות כלל, וההתחברות לא החזירה את הלקוח לעמוד שממנו הגיע. במובייל, עמוד הסל נגלל לרוחב (507px בטלפון של 360px), כל האתר נגלל לרוחב ב-320px, ולא היה תפריט ניווט. פעולת השרת של הקופה קרסה על קלט שבור. לא היה דף 404 בעברית. אחרי התיקונים (ובסבב הסופי) יש 255 בדיקות יחידה ו-17 בדיקות קצה-לקצה בדפדפן, וכולן עוברות.
 
-**English.** The foundations are solid. Money, quantities and delivery dates live in pure, unit-tested functions. Money is stored as integer agorot and quantities are counted in integer steps, so there is no floating-point drift. We found and fixed **14 defects**. The most serious: checkout had no auth gate, and login never returned the customer to where they came from. On mobile, the cart scrolled sideways (507px of content on a 360px phone), every page overflowed at 320px, and there was no navigation menu. The checkout server action crashed on malformed input, and there was no Hebrew 404 page. After the fixes, 237 unit tests and 12 end-to-end browser checks all pass.
+**English.** The foundations are solid. Money, quantities and delivery dates live in pure, unit-tested functions. Money is stored as integer agorot and quantities are counted in integer steps, so there is no floating-point drift. We found and fixed **14 defects**. The most serious: checkout had no auth gate, and login never returned the customer to where they came from. On mobile, the cart scrolled sideways (507px of content on a 360px phone), every page overflowed at 320px, and there was no navigation menu. The checkout server action crashed on malformed input, and there was no Hebrew 404 page. After the fixes (and the final pass), 255 unit tests and 17 end-to-end browser checks all pass.
 
 | בדיקה · Check | לפני · Before | אחרי · After |
 |---|---|---|
 | `tsc --noEmit` | ✅ | ✅ |
-| `vitest` | 219 ✅ | **237 ✅** (+18) |
+| `vitest` | 219 ✅ | **255 ✅** (incl. main's new address & payment tests) |
 | `next build` | ✅ | ✅ |
-| E2E (Playwright, 390px mobile) | — | **12/12 ✅** |
-| Horizontal scroll @320/360/390px | ❌ 13/13 pages @320 · ❌ cart @360/390 | **✅ 0 pages** |
+| E2E (Playwright, 390px mobile) | — | **17/17 ✅** |
+| Link crawl, guest + admin (404s / JS errors) | — | **0 / 0** (26 URLs) |
+| Horizontal scroll @320/360/390px | ❌ 13/13 pages @320 · ❌ cart @360/390 | **✅ 0 of 42** page × width checks |
+
+---
+
+## ★ סבב סופי · Final pass (2026-11-22)
+
+**עברית.** הענף עודכן על בסיס `main` העדכני (שלב תשלום הדגמה, דף אישור הזמנה, כתובות מאומתות). כל התיקונים מהסבב הראשון הותאמו לקוד החדש: שער ההתחברות בקופה, נרמול הקלט בשרת (כולל קודי עיר ורחוב), תקרת כמות, תאריך האספקה מהשרת, ופריסת המובייל. בסבב הזה:
+- **ניתוב ו-404:** סריקה אוטומטית של כל הקישורים הפנימיים, כאורח וכמנהל: 26 כתובות, אפס 404 ואפס שגיאות JavaScript. כל נתיב ממופה לקובץ `page.tsx` לפי מוסכמות App Router.
+- **כתובות נפוצות שהחזירו 404** מפנות עכשיו למסך הנכון: `/signup` ו-`/register` פותחות ישר את טופס ההרשמה (`/login?mode=signup`), `/signin` → התחברות, `/account` ו-`/my-orders` → ההזמנות שלי, `/menu` `/shop` `/products` → התפריט, `/dashboard` → ניהול.
+- **זרימת קנייה מלאה (E2E):** גלישה חופשית → סטפר 0.25 ק״ג → סל → התחברות → חזרה לקופה עם אותו סל → דמי משלוח 25 ₪ מתחת ל-150 ₪, איסוף חינם → תשלום הדגמה → דף אישור.
+- **ביצועי GSAP במובייל:** נמדדו זמני פריימים עם האטת מעבד פי 4. האנימציה הייתה חלקה כבר קודם (חציון 16.7ms, כלומר 60fps). הוסרו שכבות GPU קבועות לזרועות מוסתרות (מ-9 ל-0 במצב מנוחה), והוסר טשטוש הרקע של הכותרת במובייל. זמני הפריימים לא השתנו מעבר לרעש המדידה; התועלת היא בעיקר חיסכון בזיכרון.
+- **סקריפטים לבדיקה חוזרת:** `scripts/qa/e2e.cjs`, `crawl.cjs`, `mobile.cjs`.
+
+**English.** The branch was rebased onto the latest `main` (demo payment step, order confirmation page, verified addresses). All first-pass fixes were carried over to the new code: checkout login gate, server-side input normalization (now including city and street codes), per-line quantity cap, server-computed delivery date, and the mobile grid fix. In this pass:
+- **Routing & 404s:** an automated crawl of every internal link, as a guest and as the admin: 26 URLs, zero 404s, zero JavaScript errors. Every route maps to a `page.tsx` per App Router conventions.
+- **Common URLs that used to 404** now redirect: `/signup` and `/register` open the sign-up form directly (`/login?mode=signup`), `/signin` → login, `/account` and `/my-orders` → my orders, `/menu` `/shop` `/products` → catalog, `/dashboard` → admin.
+- **Full purchase flow (E2E):** free browsing → 0.25 kg stepper → cart → login → back to checkout with the same cart → 25 ₪ fee under 150 ₪, free pickup → demo payment → confirmation page.
+- **GSAP performance on mobile:** frame times were measured with the CPU throttled 4×. The animation was already smooth (median 16.7 ms, i.e. 60 fps). Permanent GPU layers on hidden carousel arms were removed (9 → 0 at rest), and the header's backdrop blur is off on phones. Frame times did not change beyond measurement noise; the gain is mainly GPU memory.
+- **Re-runnable QA scripts:** `scripts/qa/e2e.cjs`, `crawl.cjs`, `mobile.cjs`.
 
 ---
 
@@ -134,7 +153,7 @@
 - open redirect: `//evil.com`, `/\evil.com`, `javascript:`, תווי בקרה. · Open-redirect attempts are rejected.
 - מספרי טלפון ישראליים מומרים לפורמט וואטסאפ, וקישורי wa.me ו-mailto מקודדים נכון. · Israeli phone numbers convert to the WhatsApp format; wa.me and mailto links are encoded correctly.
 
-**E2E (`390px`, touch):** browsing without login (73 products) · KG stepper 0.25→1.00 and back · guest link to `/login?next=/checkout` · gate on direct `/checkout` access · return to checkout after login with the cart kept · open redirect blocked · 25 ₪ fee under 150 ₪ · order placed and confirmed by the server.
+**E2E (`390px`, touch):** browsing without login (73 products) · KG stepper 0.25→1.00 and back · guest link to `/login?next=/checkout` · gate on direct `/checkout` access · return to checkout after login with the cart kept · open redirect blocked · 25 ₪ fee under 150 ₪ · free pickup · demo payment → confirmation page · `/signup`, `/register`, `/account`, `/menu` redirects.
 
 > הערת סביבה · Environment note: in the test environment `images.unsplash.com` was blocked by the network, so photos showed their fallback icon. That is how we caught defect #11 (the broken cart thumbnail).
 

@@ -12,8 +12,10 @@ const nav = [
 ];
 
 export function Header() {
+  // Perf (QA): on phones the header is solid; the blur behind a 95%-opaque background was
+  // invisible but re-painted on every scroll frame. HE: ביטול טשטוש הרקע בכותרת במובייל לגלילה חלקה.
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-paper/95 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-line bg-paper sm:bg-paper/95 sm:backdrop-blur">
       <DeliveryBanner />
       {/* QA (mobile): at 320px the row was 352px wide (logo text-3xl + gap-6), so every page scrolled sideways. */}
       <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:gap-6">

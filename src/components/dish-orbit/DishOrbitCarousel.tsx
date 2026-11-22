@@ -432,13 +432,15 @@ export function DishOrbitCarousel({ dishes: baseDishes }: { dishes: OrbitDish[] 
             </div>
           ))}
 
-          {/* one orbit arm per slide; only the active one is visible at rest */}
+          {/* one orbit arm per slide; only the active one is visible at rest.
+              Perf (QA): no permanent will-change — it kept every hidden arm on its own GPU layer;
+              GSAP promotes an arm to 3D only while its tween runs (force3D: "auto"). */}
           {[null, ...dishes].map((d, i) => (
             <div
               key={d?.product.id ?? "welcome"}
               ref={(el) => void (armsRef.current[i] = el)}
               aria-hidden={i !== active}
-              className="pointer-events-none absolute inset-0 will-change-transform"
+              className="pointer-events-none absolute inset-0"
               style={{ transformOrigin: "var(--pivot)", opacity: i === 0 ? 1 : 0, visibility: i === 0 ? "visible" : "hidden" }}
             >
               <div
