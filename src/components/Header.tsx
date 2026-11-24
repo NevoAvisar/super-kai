@@ -8,6 +8,7 @@ const nav = [
   { href: "/catalog", label: "התפריט" },
   { href: "/#about", label: "מי אנחנו" },
   { href: "/#how-it-works", label: "איך זה עובד" },
+  { href: "/contact", label: "צור קשר" },
 ];
 
 export function Header() {

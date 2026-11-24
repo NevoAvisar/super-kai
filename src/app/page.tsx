@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { getCategories } from "@/lib/catalog";
 import { getHeroDishes } from "@/lib/hero-dishes";
 import { DishOrbitCarousel } from "@/components/dish-orbit/DishOrbitCarousel";
@@ -15,11 +16,13 @@ const steps = [
 ];
 
 /**
- * The home page is the orbit carousel: Kai's welcome & story, then the most
- * popular dishes of each category. Below it, only the practical "how it works".
+ * The home page is the orbit carousel: Kai's welcome & story, then popular
+ * dishes of each category. Below it, only the practical "how it works".
  */
 export default async function HomePage() {
-  const [categories, dishes] = await Promise.all([getCategories(), getHeroDishes(2)]);
+  // Rendered per request: every visit / refresh draws a new featured line-up.
+  await connection();
+  const [categories, dishes] = await Promise.all([getCategories(), getHeroDishes(2, { varied: true })]);
   const links = portionLinks(categories);
 
   return (
@@ -51,6 +54,3 @@ export default async function HomePage() {
     </>
   );
 }
-
-// Re-read the catalog and popularity (orders, likes) at most once a minute.
-export const revalidate = 60;

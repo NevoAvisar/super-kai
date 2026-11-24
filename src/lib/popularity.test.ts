@@ -49,4 +49,33 @@ describe("pickHeroDishes", () => {
     }).map((d) => d.product.id);
     expect(ids2).toEqual(["y"]);
   });
+
+  describe("with random (varied line-up)", () => {
+    const mains = ["m0", "m1", "m2", "m3", "m4", "m5"].map((id) => p(id, "main-courses"));
+    const opts = { categories: ["main-courses"], perCategory: 2, pool: 4 };
+
+    it("draws from the top of the pool only, keeping rank order and original ranks", () => {
+      for (const r of [0, 0.3, 0.6, 0.99]) {
+        const picked = pickHeroDishes(mains, {}, { ...opts, random: () => r });
+        expect(picked).toHaveLength(2);
+        expect(picked.every((d) => d.rank < 4)).toBe(true);
+        expect(picked[0].rank).toBeLessThan(picked[1].rank);
+        expect(new Set(picked.map((d) => d.product.id)).size).toBe(2);
+      }
+    });
+
+    it("varies between draws, favouring the most popular dishes", () => {
+      let seed = 42;
+      const random = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+      const counts: Record<string, number> = {};
+      for (let i = 0; i < 2000; i++)
+        for (const d of pickHeroDishes(mains, {}, { ...opts, random })) counts[d.product.id] = (counts[d.product.id] ?? 0) + 1;
+      expect(Object.keys(counts).sort()).toEqual(["m0", "m1", "m2", "m3"]);
+      expect(counts.m0).toBeGreaterThan(counts.m3);
+    });
+
+    it("returns the whole category when it is smaller than perCategory", () => {
+      expect(pickHeroDishes([p("a", "sides")], {}, { categories: ["sides"], random: Math.random })).toHaveLength(1);
+    });
+  });
 });

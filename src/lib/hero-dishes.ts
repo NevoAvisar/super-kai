@@ -38,11 +38,12 @@ async function popularitySignals(productIds: string[]): Promise<Record<string, P
 }
 
 /**
- * The hero carousel's dishes: the most popular in-stock dishes of each hero
- * category (mains → salads → soups → sides). The home page revalidates every
- * minute, so the line-up follows what customers order and like.
+ * The hero carousel's dishes: popular in-stock dishes of each hero category
+ * (mains → salads → soups → sides), ranked by what customers order and like.
+ * With `varied`, each call draws a fresh selection from the top of each
+ * category (popular dishes more likely), so the home page changes per visit.
  */
-export async function getHeroDishes(perCategory = 2): Promise<OrbitDish[]> {
+export async function getHeroDishes(perCategory = 2, { varied = false } = {}): Promise<OrbitDish[]> {
   const [products, categories] = await Promise.all([getProducts(), getCategories()]);
   const seed = new Map(seedProducts.filter((p) => p.slug).map((p) => [p.slug!, p]));
   const categoryName = new Map(categories.map((c) => [c.slug, c.name]));
@@ -52,6 +53,7 @@ export async function getHeroDishes(perCategory = 2): Promise<OrbitDish[]> {
   return pickHeroDishes(candidates, signals, {
     perCategory,
     isSignature: (p) => !!seed.get(p.slug)?.ingredients?.length,
+    ...(varied && { random: Math.random, pool: perCategory * 3 }),
   }).map(({ product, score, rank }) => {
     const s = seed.get(product.slug);
     const extras = DISH_ORBIT[product.slug];

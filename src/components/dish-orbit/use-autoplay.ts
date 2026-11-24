@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type FocusEvent, type PointerEvent, type RefObject } from "react";
 import gsap from "gsap";
+import { A11Y_EVENT, A11Y_TOGGLES } from "@/lib/a11y-prefs";
 
 type Reason = "hover" | "focus" | "hidden" | "offscreen" | "user" | "reduced";
 
@@ -76,7 +77,9 @@ export function useAutoplay({ rootRef, barRef, seconds, step, canStep, restartKe
     const root = rootRef.current;
     if (!root) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const onReduce = () => setReason("reduced", reduce.matches);
+    // The OS setting, or "stop animations" in the accessibility toolbar.
+    const onReduce = () =>
+      setReason("reduced", reduce.matches || document.documentElement.classList.contains(A11Y_TOGGLES.noMotion));
     const onVisibility = () => setReason("hidden", document.hidden);
     // A visitor scrolling or touching the page gets a fresh countdown, so the
     // carousel never moves out from under them mid-gesture.
@@ -89,12 +92,14 @@ export function useAutoplay({ rootRef, barRef, seconds, step, canStep, restartKe
     onVisibility();
     io.observe(root);
     reduce.addEventListener("change", onReduce);
+    window.addEventListener(A11Y_EVENT, onReduce);
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("wheel", onUserMove, { passive: true });
     window.addEventListener("touchstart", onUserMove, { passive: true });
     return () => {
       io.disconnect();
       reduce.removeEventListener("change", onReduce);
+      window.removeEventListener(A11Y_EVENT, onReduce);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("wheel", onUserMove);
       window.removeEventListener("touchstart", onUserMove);

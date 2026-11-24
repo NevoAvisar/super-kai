@@ -32,12 +32,23 @@ export interface RankedDish<T> {
 export function pickHeroDishes<T extends Rankable>(
   products: T[],
   signals: Record<string, PopularitySignal>,
-  opts: { categories?: string[]; perCategory?: number; isSignature?: (p: T) => boolean } = {},
+  opts: {
+    categories?: string[];
+    perCategory?: number;
+    isSignature?: (p: T) => boolean;
+    /**
+     * Vary the line-up: draw `perCategory` dishes at random from the top `pool`
+     * of each category, the more popular ones more likely. Without it the pick
+     * is deterministic (the top `perCategory`).
+     */
+    random?: () => number;
+    pool?: number;
+  } = {},
 ): RankedDish<T>[] {
-  const { categories = HERO_CATEGORIES, perCategory = 2, isSignature = () => false } = opts;
+  const { categories = HERO_CATEGORIES, perCategory = 2, isSignature = () => false, random, pool = perCategory * 2 } = opts;
   const order = new Map(products.map((p, i) => [p.id, i]));
-  return categories.flatMap((slug) =>
-    products
+  return categories.flatMap((slug) => {
+    const ranked = products
       .filter((p) => p.categorySlug === slug)
       .map((product) => ({ product, score: popularityScore(signals[product.id]) }))
       .sort(
@@ -47,7 +58,21 @@ export function pickHeroDishes<T extends Rankable>(
           Number(isSignature(b.product)) - Number(isSignature(a.product)) ||
           order.get(a.product.id)! - order.get(b.product.id)!,
       )
-      .slice(0, perCategory)
-      .map((d, rank) => ({ ...d, rank })),
-  );
+      .map((d, rank) => ({ ...d, rank }));
+    return random ? weightedSample(ranked.slice(0, Math.max(pool, perCategory)), perCategory, random) : ranked.slice(0, perCategory);
+  });
+}
+
+/** Draws `n` items without replacement, weighting by rank (top of the pool most likely); keeps rank order. */
+function weightedSample<T extends { rank: number }>(items: T[], n: number, random: () => number): T[] {
+  const left = [...items];
+  const picked: T[] = [];
+  while (picked.length < n && left.length) {
+    const weights = left.map((d) => items.length - d.rank);
+    let r = random() * weights.reduce((a, b) => a + b, 0);
+    let i = 0;
+    while (i < left.length - 1 && (r -= weights[i]) >= 0) i++;
+    picked.push(...left.splice(i, 1));
+  }
+  return picked.sort((a, b) => a.rank - b.rank);
 }

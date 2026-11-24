@@ -51,3 +51,68 @@ h1, h2, h3 {
 @media (prefers-reduced-motion: reduce) {
   .pay-pop { animation: none; }
 }
+
+/* Keyboard users always get a visible focus ring (WCAG 2.4.7); components may restyle it. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 2px;
+  }
+}
+
+/* ---- Accessibility toolbar modes (lib/a11y-prefs.ts sets these classes on <html>) ---- */
+
+/* High contrast: the palette tokens drive every surface, so overriding them re-themes the site. */
+html.a11y-contrast {
+  --color-cream: #ffffff;
+  --color-paper: #ffffff;
+  --color-ink: #000000;
+  --color-muted: #1a1a1a;
+  --color-line: #000000;
+  --color-brand-50: #fff1e8;
+  --color-brand-100: #ffd9c2;
+  --color-brand-500: #8f2f00;
+  --color-brand-600: #702400;
+  --color-brand-700: #521a00;
+  --color-leaf-600: #3c4419;
+  --color-leaf-700: #2b3110;
+}
+html.a11y-contrast img,
+html.a11y-contrast video {
+  filter: contrast(1.1);
+}
+
+html.a11y-links a {
+  text-decoration: underline !important;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 2px;
+}
+html.a11y-links a:not([class*="bg-"]) {
+  color: var(--color-brand-700) !important;
+}
+
+html.a11y-readable {
+  --font-sans: Arial, "Helvetica Neue", system-ui, sans-serif;
+  --font-display: Arial, "Helvetica Neue", system-ui, sans-serif;
+  letter-spacing: 0.01em;
+  word-spacing: 0.08em;
+}
+html.a11y-readable body {
+  line-height: 1.7;
+}
+
+html.a11y-focus :focus-visible,
+html.a11y-focus :focus {
+  outline: 4px solid #1f4e9c !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 7px #ffd400 !important;
+}
+
+html.a11y-no-motion *,
+html.a11y-no-motion ::before,
+html.a11y-no-motion ::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
