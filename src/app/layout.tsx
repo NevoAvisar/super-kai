@@ -6,14 +6,19 @@ import { Footer } from "@/components/Footer";
 import { AccessibilityWidget } from "@/components/a11y/AccessibilityWidget";
 import { CookieConsent } from "@/components/consent/CookieConsent";
 import { A11Y_BOOT_SCRIPT } from "@/lib/a11y-prefs";
+import { SHARED_OPEN_GRAPH, SHARED_TWITTER, SITE_DESCRIPTION, SITE_TITLE, SITE_URL } from "@/lib/site-metadata";
 import "./globals.css";
 
 const heebo = Heebo({ subsets: ["hebrew", "latin"], variable: "--font-heebo" });
 const frank = Frank_Ruhl_Libre({ subsets: ["hebrew", "latin"], weight: ["500", "700", "900"], variable: "--font-frank" });
 
 export const metadata: Metadata = {
-  title: { default: "סופר-קאי | אוכל מוכן ביתי עד הבית", template: "%s | סופר-קאי" },
-  description: "אוכל מוכן ביתי ישירות מהמטבח של קאי. מזמינים היום – מקבלים מחר.",
+  metadataBase: new URL(SITE_URL),
+  title: { default: SITE_TITLE, template: "%s | סופר-קאי" },
+  description: SITE_DESCRIPTION,
+  applicationName: "Super-Kai",
+  openGraph: SHARED_OPEN_GRAPH,
+  twitter: SHARED_TWITTER,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

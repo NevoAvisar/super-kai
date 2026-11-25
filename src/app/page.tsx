@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { connection } from "next/server";
 import { getCategories } from "@/lib/catalog";
 import { getHeroDishes } from "@/lib/hero-dishes";
@@ -6,6 +7,10 @@ import { PortionGuide } from "@/components/PortionGuide";
 import { portionLinks } from "@/lib/portion-links";
 import { DEFAULT_RULES } from "@/lib/config";
 import { formatILS } from "@/lib/money";
+import { SHARED_OPEN_GRAPH } from "@/lib/site-metadata";
+
+// Link preview for the home page: the shared card plus og:url = the site root.
+export const metadata: Metadata = { openGraph: { ...SHARED_OPEN_GRAPH, url: "/" } };
 
 const cutoff = `${DEFAULT_RULES.cutoffHour}:${String(DEFAULT_RULES.cutoffMinute).padStart(2, "0")}`;
 const steps = [
